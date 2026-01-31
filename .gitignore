@@ -1,0 +1,41 @@
+# EngageWatch - Git Ignore
+
+# Environment
+.env
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+
+# Data (sensitive)
+data/engagewatch.db
+data/cookies.json
+data/*.db
+data/*.json
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Build
+dist/
+build/
+*.egg-info/

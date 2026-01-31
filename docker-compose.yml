@@ -1,0 +1,55 @@
+# ============================================
+# EngageWatch - Docker Compose
+# ============================================
+
+services:
+  engagewatch:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: engagewatch
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      # Persistance de la base de données et des cookies
+      - engagewatch_data:/app/data
+    environment:
+      # Identifiants FFE (OBLIGATOIRE)
+      - FFE_USERNAME=${FFE_USERNAME}
+      - FFE_PASSWORD=${FFE_PASSWORD}
+
+      # Telegram (OBLIGATOIRE pour les notifications)
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+
+      # Email (OPTIONNEL)
+      - EMAIL_ENABLED=${EMAIL_ENABLED:-false}
+      - EMAIL_SMTP_HOST=${EMAIL_SMTP_HOST:-smtp.gmail.com}
+      - EMAIL_SMTP_PORT=${EMAIL_SMTP_PORT:-587}
+      - EMAIL_SMTP_USE_TLS=${EMAIL_SMTP_USE_TLS:-true}
+      - EMAIL_SMTP_USERNAME=${EMAIL_SMTP_USERNAME:-}
+      - EMAIL_SMTP_PASSWORD=${EMAIL_SMTP_PASSWORD:-}
+      - EMAIL_FROM=${EMAIL_FROM:-}
+      - EMAIL_TO=${EMAIL_TO:-}
+
+      # Authentification interface web
+      - AUTH_USERNAME=${AUTH_USERNAME:-admin}
+      - AUTH_PASSWORD=${AUTH_PASSWORD:-changeme}
+      - AUTH_SECRET_KEY=${AUTH_SECRET_KEY:-change-this-secret-key-in-production}
+
+      # Configuration application
+      - CHECK_INTERVAL=${CHECK_INTERVAL:-5}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - DATABASE_PATH=/app/data/engagewatch.db
+      - COOKIES_PATH=/app/data/cookies.json
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  engagewatch_data:
+    driver: local
