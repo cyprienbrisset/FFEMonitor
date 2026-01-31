@@ -12,22 +12,39 @@ root_dir = Path(__file__).parent
 sys.path.insert(0, str(root_dir))
 
 
-def check_env_file():
-    """Vérifie que le fichier .env existe."""
+def check_env_config():
+    """Vérifie que la configuration est disponible (.env ou variables d'environnement)."""
+    import os
+
     env_file = root_dir / ".env"
     env_example = root_dir / ".env.example"
 
-    if not env_file.exists():
+    # Variables obligatoires
+    required_vars = ["FFE_USERNAME", "FFE_PASSWORD", "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID"]
+
+    # Si le fichier .env existe, c'est bon
+    if env_file.exists():
+        return
+
+    # Sinon, vérifier que les variables d'environnement sont définies (mode Docker)
+    missing_vars = [var for var in required_vars if not os.environ.get(var)]
+
+    if missing_vars:
         print("=" * 50)
-        print("ERREUR: Fichier .env manquant")
+        print("ERREUR: Configuration manquante")
         print("=" * 50)
         print()
-        print("Créez un fichier .env à partir du template:")
+        print("Variables manquantes:", ", ".join(missing_vars))
+        print()
+        print("Option 1 - Créez un fichier .env:")
         print(f"  cp {env_example} {env_file}")
         print()
-        print("Puis remplissez vos identifiants FFE et Telegram.")
+        print("Option 2 - Définissez les variables d'environnement (Docker):")
+        print("  Vérifiez votre docker-compose.yml ou .env sur l'hôte")
         print()
         sys.exit(1)
+
+    print("Mode Docker détecté (variables d'environnement)")
 
 
 def check_dependencies():
@@ -58,12 +75,12 @@ def main():
     """Point d'entrée principal."""
     import uvicorn
 
-    check_env_file()
+    check_env_config()
     check_dependencies()
 
     print()
     print("=" * 50)
-    print("  EngageWatch - Surveillance Concours FFE")
+    print("  FFE Monitor - Surveillance Concours FFE")
     print("=" * 50)
     print()
 
