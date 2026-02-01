@@ -588,13 +588,13 @@ class ResendNotifier:
                     <tr>
                         <td align="center">
                             <p style="font-size: 48px; margin: 0 0 16px 0;">🐴</p>
-                            <h1 style="color: #F5F0E8; margin: 0 0 8px 0; font-size: 24px; font-weight: 600;">
+                            <h1 style="color: #FFFFFF; margin: 0 0 8px 0; font-size: 24px; font-weight: 600;">
                                 FFE Monitor
                             </h1>
-                            <p style="color: rgba(245,240,232,0.6); font-size: 14px; text-transform: uppercase; letter-spacing: 2px; margin: 0 0 24px 0;">
+                            <p style="color: #FFFFFF; font-size: 14px; text-transform: uppercase; letter-spacing: 2px; margin: 0 0 24px 0;">
                                 ✅ Surveillance active
                             </p>
-                            <p style="color: rgba(245,240,232,0.8); font-size: 16px; line-height: 1.6; margin: 0;">
+                            <p style="color: #FFFFFF; font-size: 16px; line-height: 1.6; margin: 0;">
                                 Vous recevrez une notification dès qu'un concours s'ouvrira aux engagements.
                             </p>
                         </td>
