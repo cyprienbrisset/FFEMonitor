@@ -66,6 +66,119 @@
 }
 
 /* ============================================================================
+   Light Theme Variables
+   ============================================================================ */
+
+[data-theme="light"] {
+    /* Primary Colors - Softer Burgundy for light mode */
+    --burgundy: #8B4049;
+    --burgundy-deep: #722F37;
+    --burgundy-light: #A65058;
+
+    /* Accent - Warmer Gold */
+    --gold: #B8922A;
+    --gold-light: #D4A92E;
+    --gold-muted: #9A7A22;
+
+    /* Neutrals - Inverted */
+    --cream: #1A1A1A;
+    --cream-dark: #2D2D2D;
+    --cream-light: #0D0D0D;
+    --charcoal: #F5F0E8;
+    --charcoal-light: #FFFFFF;
+    --charcoal-muted: #9A9590;
+
+    /* Forest Green - Fields */
+    --forest: #3D6B50;
+    --forest-light: #4D8060;
+
+    /* Status Colors - Slightly adjusted for contrast */
+    --success: #3D7A4D;
+    --success-light: #4A9960;
+    --warning: #B8922A;
+    --danger: #C44547;
+    --info: #4A7DB3;
+
+    /* Shadows - Darker for light backgrounds */
+    --shadow-sm: 0 2px 8px rgba(26, 26, 26, 0.06);
+    --shadow-md: 0 4px 20px rgba(26, 26, 26, 0.10);
+    --shadow-lg: 0 8px 40px rgba(26, 26, 26, 0.14);
+    --shadow-gold: 0 4px 20px rgba(184, 146, 42, 0.20);
+}
+
+[data-theme="light"] body {
+    background: var(--charcoal);
+    color: var(--cream);
+}
+
+[data-theme="light"] .login-card,
+[data-theme="light"] .bento-card {
+    background: var(--charcoal-light);
+    border-color: rgba(26, 26, 26, 0.08);
+}
+
+[data-theme="light"] .login-form .input-wrapper input,
+[data-theme="light"] .input-wrapper input {
+    background: rgba(245, 240, 232, 0.5);
+    border-color: rgba(26, 26, 26, 0.15);
+    color: var(--cream);
+}
+
+[data-theme="light"] .login-form .input-wrapper input::placeholder,
+[data-theme="light"] .input-wrapper input::placeholder {
+    color: rgba(26, 26, 26, 0.4);
+}
+
+[data-theme="light"] .login-form .input-wrapper input:focus,
+[data-theme="light"] .input-wrapper input:focus {
+    background: rgba(245, 240, 232, 0.7);
+    border-color: var(--gold);
+}
+
+[data-theme="light"] .status-block {
+    background: rgba(245, 240, 232, 0.5);
+    border-color: rgba(26, 26, 26, 0.06);
+}
+
+[data-theme="light"] .concours-card {
+    background: rgba(245, 240, 232, 0.6);
+    border-color: rgba(26, 26, 26, 0.08);
+}
+
+[data-theme="light"] .concours-card:hover {
+    background: rgba(245, 240, 232, 0.8);
+}
+
+[data-theme="light"] .btn-access {
+    color: var(--gold);
+    border-color: var(--gold);
+}
+
+[data-theme="light"] .btn-access:hover {
+    color: #FFFFFF;
+}
+
+[data-theme="light"] .decoration-circle {
+    border-color: rgba(184, 146, 42, 0.15);
+}
+
+[data-theme="light"] .noise-overlay {
+    opacity: 0.02;
+}
+
+[data-theme="light"] ::-webkit-scrollbar-track {
+    background: var(--charcoal);
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+    background: rgba(26, 26, 26, 0.2);
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+    background: rgba(26, 26, 26, 0.3);
+}
+
+/* ============================================================================
    Reset & Base
    ============================================================================ */
 
@@ -551,6 +664,73 @@ body {
     transform: scale(0.98);
 }
 
+/* Theme Toggle Button */
+.btn-theme {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    font-family: var(--font-body);
+    font-size: 1.2rem;
+    color: var(--gold);
+    background: linear-gradient(135deg, rgba(201, 162, 39, 0.1), rgba(201, 162, 39, 0.05));
+    border: 1px solid rgba(201, 162, 39, 0.3);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all 0.3s var(--ease-out);
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-theme:hover {
+    color: var(--gold-light);
+    border-color: var(--gold);
+    background: linear-gradient(135deg, rgba(201, 162, 39, 0.2), rgba(201, 162, 39, 0.1));
+    box-shadow: 0 0 20px rgba(201, 162, 39, 0.2);
+    transform: translateY(-1px);
+}
+
+.btn-theme:active {
+    transform: scale(0.95);
+}
+
+.btn-theme .theme-icon {
+    transition: transform 0.4s var(--ease-spring);
+}
+
+.btn-theme:hover .theme-icon {
+    transform: rotate(20deg);
+}
+
+/* Sun/Moon icon transitions */
+.btn-theme .icon-sun,
+.btn-theme .icon-moon {
+    position: absolute;
+    transition: opacity 0.3s var(--ease-out), transform 0.3s var(--ease-out);
+}
+
+.btn-theme .icon-sun {
+    opacity: 0;
+    transform: rotate(-90deg) scale(0.5);
+}
+
+.btn-theme .icon-moon {
+    opacity: 1;
+    transform: rotate(0deg) scale(1);
+}
+
+[data-theme="light"] .btn-theme .icon-sun {
+    opacity: 1;
+    transform: rotate(0deg) scale(1);
+}
+
+[data-theme="light"] .btn-theme .icon-moon {
+    opacity: 0;
+    transform: rotate(90deg) scale(0.5);
+}
+
 @keyframes fadeSlideDown {
     from {
         opacity: 0;
@@ -1010,6 +1190,381 @@ body {
 }
 
 /* ============================================================================
+   Global Stats Card
+   ============================================================================ */
+
+.card-global-stats {
+    grid-column: span 9;
+}
+
+.global-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--space-md);
+}
+
+.stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: var(--space-md);
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: var(--radius-md);
+    border: 1px solid rgba(245, 240, 232, 0.04);
+    transition: all 0.3s var(--ease-out);
+}
+
+.stat-item:hover {
+    background: rgba(0, 0, 0, 0.3);
+    border-color: rgba(201, 162, 39, 0.2);
+}
+
+.stat-value {
+    font-family: var(--font-display);
+    font-size: 2rem;
+    font-weight: 600;
+    color: var(--gold);
+    line-height: 1.2;
+}
+
+.stat-label {
+    font-size: 0.8rem;
+    color: rgba(245, 240, 232, 0.5);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-top: var(--space-xs);
+}
+
+@media (max-width: 768px) {
+    .card-global-stats {
+        grid-column: span 1;
+    }
+
+    .global-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: var(--space-sm);
+    }
+
+    .stat-value {
+        font-size: 1.5rem;
+    }
+
+    .stat-label {
+        font-size: 0.7rem;
+    }
+}
+
+/* ============================================================================
+   Activity Chart Card
+   ============================================================================ */
+
+.card-chart {
+    grid-column: span 12;
+}
+
+.card-chart .card-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+.chart-period-toggle {
+    margin-left: auto;
+    display: flex;
+    gap: 4px;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 4px;
+    border-radius: var(--radius-sm);
+}
+
+.period-btn {
+    padding: 6px 12px;
+    font-family: var(--font-body);
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: rgba(245, 240, 232, 0.5);
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s var(--ease-out);
+}
+
+.period-btn:hover {
+    color: rgba(245, 240, 232, 0.8);
+}
+
+.period-btn.active {
+    color: var(--charcoal);
+    background: var(--gold);
+}
+
+.chart-container {
+    position: relative;
+    height: 250px;
+    margin-top: var(--space-md);
+}
+
+.chart-container canvas {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+@media (max-width: 768px) {
+    .card-chart {
+        grid-column: span 1;
+    }
+
+    .chart-container {
+        height: 200px;
+    }
+
+    .chart-period-toggle {
+        padding: 2px;
+    }
+
+    .period-btn {
+        padding: 4px 8px;
+        font-size: 0.7rem;
+    }
+}
+
+/* ============================================================================
+   Calendar Card
+   ============================================================================ */
+
+.card-calendar {
+    grid-column: span 12;
+}
+
+.card-calendar .card-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+.calendar-nav {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+.cal-nav-btn {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    color: var(--gold);
+    background: rgba(201, 162, 39, 0.1);
+    border: 1px solid rgba(201, 162, 39, 0.3);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.2s var(--ease-out);
+}
+
+.cal-nav-btn:hover {
+    background: rgba(201, 162, 39, 0.2);
+    border-color: var(--gold);
+}
+
+.cal-month-label {
+    font-family: var(--font-display);
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--cream);
+    min-width: 140px;
+    text-align: center;
+}
+
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+    margin-top: var(--space-md);
+}
+
+.cal-header {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: rgba(245, 240, 232, 0.5);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    text-align: center;
+    padding: var(--space-xs) 0;
+}
+
+.cal-day {
+    aspect-ratio: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: var(--radius-sm);
+    font-size: 0.9rem;
+    color: rgba(245, 240, 232, 0.7);
+    position: relative;
+    transition: all 0.2s var(--ease-out);
+    cursor: default;
+}
+
+.cal-day.empty {
+    background: transparent;
+}
+
+.cal-day.today {
+    border: 2px solid var(--gold);
+    color: var(--cream);
+}
+
+.cal-day.has-event {
+    cursor: pointer;
+}
+
+.cal-day.has-event:hover {
+    background: rgba(0, 0, 0, 0.4);
+    transform: scale(1.05);
+}
+
+.cal-day-number {
+    font-weight: 500;
+}
+
+.cal-event-dots {
+    display: flex;
+    gap: 3px;
+    margin-top: 4px;
+}
+
+.cal-event-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    box-shadow: 0 0 4px currentColor;
+}
+
+.cal-event-dot.engagement {
+    background: #22C55E;
+    box-shadow: 0 0 6px rgba(34, 197, 94, 0.6);
+}
+
+.cal-event-dot.demande {
+    background: #3B82F6;
+    box-shadow: 0 0 6px rgba(59, 130, 246, 0.6);
+}
+
+.cal-event-dot.ferme {
+    background: var(--gold);
+    box-shadow: 0 0 4px rgba(200, 170, 110, 0.4);
+}
+
+.calendar-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-md);
+    margin-top: var(--space-md);
+    padding-top: var(--space-md);
+    border-top: 1px solid rgba(245, 240, 232, 0.06);
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    font-size: 0.8rem;
+    color: rgba(245, 240, 232, 0.5);
+}
+
+.legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.legend-dot.engagement {
+    background: var(--success-light);
+}
+
+.legend-dot.demande {
+    background: var(--info);
+}
+
+.legend-dot.ferme {
+    background: var(--charcoal-muted);
+}
+
+/* Calendar tooltip */
+.cal-tooltip {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--charcoal);
+    border: 1px solid var(--gold);
+    border-radius: var(--radius-sm);
+    padding: var(--space-xs) var(--space-sm);
+    font-size: 0.75rem;
+    color: var(--cream);
+    white-space: nowrap;
+    z-index: 10;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.2s var(--ease-out);
+}
+
+.cal-day.has-event:hover .cal-tooltip {
+    opacity: 1;
+    visibility: visible;
+}
+
+@media (max-width: 768px) {
+    .card-calendar {
+        grid-column: span 1;
+    }
+
+    .cal-month-label {
+        font-size: 0.9rem;
+        min-width: 100px;
+    }
+
+    .cal-nav-btn {
+        width: 28px;
+        height: 28px;
+        font-size: 0.9rem;
+    }
+
+    .cal-header {
+        font-size: 0.65rem;
+    }
+
+    .cal-day {
+        font-size: 0.75rem;
+    }
+
+    .cal-event-dots {
+        margin-top: 2px;
+    }
+
+    .cal-event-dot {
+        width: 4px;
+        height: 4px;
+    }
+
+    .calendar-legend {
+        gap: var(--space-sm);
+    }
+
+    .legend-item {
+        font-size: 0.7rem;
+    }
+}
+
+/* ============================================================================
    Concours List Card
    ============================================================================ */
 
@@ -1107,6 +1662,34 @@ body {
     margin-bottom: var(--space-sm);
 }
 
+.concours-title-wrapper {
+    flex: 1;
+    min-width: 0;
+}
+
+.concours-nom {
+    font-family: var(--font-serif);
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: var(--cream);
+    line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.concours-subtitle {
+    font-family: var(--font-body);
+    font-size: 0.8rem;
+    color: var(--charcoal-muted);
+    margin-top: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .concours-numero {
     font-family: var(--font-display);
     font-size: 1.5rem;
@@ -1148,6 +1731,62 @@ body {
     background: var(--danger);
     border-color: var(--danger);
     color: var(--cream);
+}
+
+.btn-access {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    margin-top: var(--space-md);
+    padding: 10px 16px;
+    background: transparent;
+    color: var(--gold);
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+    font-weight: 500;
+    text-align: center;
+    text-decoration: none;
+    border: 1.5px solid var(--gold);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.25s var(--ease-out);
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-access::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dark) 100%);
+    opacity: 0;
+    transition: opacity 0.25s var(--ease-out);
+    z-index: -1;
+}
+
+.btn-access:hover::before {
+    opacity: 1;
+}
+
+.btn-access:hover {
+    color: var(--charcoal);
+    border-color: transparent;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(200, 170, 110, 0.4);
+}
+
+.btn-access:active {
+    transform: translateY(0);
+}
+
+.btn-access svg {
+    transition: transform 0.25s var(--ease-out);
+}
+
+.btn-access:hover svg {
+    transform: translate(2px, -2px);
 }
 
 .concours-meta {
@@ -1265,31 +1904,70 @@ body {
 @media (max-width: 768px) {
     .app-container {
         padding: var(--space-md);
+        padding-top: 0;
     }
 
+    /* Sticky header on mobile */
     .header {
-        flex-direction: column;
-        text-align: center;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        background: var(--charcoal);
+        padding: var(--space-md) 0;
+        margin-bottom: var(--space-md);
+        flex-wrap: wrap;
         gap: var(--space-sm);
+        border-bottom: 1px solid rgba(245, 240, 232, 0.06);
     }
 
-    .header-actions {
-        margin-left: 0;
-        margin-top: var(--space-sm);
+    [data-theme="light"] .header {
+        background: var(--charcoal);
     }
 
     .logo-wrapper {
+        width: 60px;
+        height: 60px;
+        border-radius: var(--radius-md);
+    }
+
+    .logo {
         width: 100px;
         height: 100px;
     }
 
-    .logo {
-        width: 65px;
-        height: 65px;
+    .header-text h1 {
+        font-size: 1.5rem;
     }
 
-    .header-text h1 {
-        font-size: 2rem;
+    .tagline {
+        font-size: 0.7rem;
+        letter-spacing: 0.04em;
+    }
+
+    /* Mobile menu toggle */
+    .header-actions {
+        margin-left: auto;
+        display: flex;
+        gap: var(--space-xs);
+    }
+
+    /* Hide text labels on mobile for header buttons */
+    .btn-guide span,
+    .btn-logout span {
+        display: none;
+    }
+
+    .btn-guide,
+    .btn-logout {
+        padding: var(--space-xs);
+        min-width: 44px;
+        min-height: 44px;
+        justify-content: center;
+    }
+
+    .btn-theme {
+        min-width: 44px;
+        min-height: 44px;
     }
 
     .bento-grid {
@@ -1312,8 +1990,21 @@ body {
         flex-direction: column;
     }
 
+    /* Touch-friendly buttons - 48px minimum */
     .btn-add {
         justify-content: center;
+        min-height: 48px;
+    }
+
+    .btn-delete {
+        min-width: 44px;
+        min-height: 44px;
+    }
+
+    /* Prevent iOS zoom on input focus */
+    .input-wrapper input,
+    .login-form .input-wrapper input {
+        font-size: 16px;
     }
 
     .stats-number {
@@ -1334,13 +2025,13 @@ body {
     }
 
     .login-logo-wrapper {
-        width: 140px;
-        height: 140px;
+        width: 120px;
+        height: 120px;
     }
 
     .login-logo {
-        width: 90px;
-        height: 90px;
+        width: 150px;
+        height: 150px;
     }
 
     .login-header h1 {
@@ -1350,6 +2041,10 @@ body {
     .login-tagline {
         font-size: 0.8rem;
     }
+
+    .btn-login {
+        min-height: 48px;
+    }
 }
 
 @media (max-width: 480px) {
@@ -1358,21 +2053,100 @@ body {
         --space-xl: 2rem;
     }
 
+    .app-container {
+        padding: var(--space-sm);
+        padding-top: 0;
+    }
+
+    .header {
+        padding: var(--space-sm) 0;
+    }
+
+    .logo-wrapper {
+        width: 50px;
+        height: 50px;
+    }
+
+    .logo {
+        width: 80px;
+        height: 80px;
+    }
+
     .header-text h1 {
-        font-size: 1.75rem;
+        font-size: 1.25rem;
     }
 
     .tagline {
-        font-size: 0.8rem;
+        font-size: 0.65rem;
+    }
+
+    .header-actions {
+        gap: 4px;
+    }
+
+    .btn-guide,
+    .btn-logout,
+    .btn-theme {
+        min-width: 40px;
+        min-height: 40px;
+        padding: 8px;
     }
 
     .bento-card {
         padding: var(--space-md);
     }
 
+    .card-header h2 {
+        font-size: 1rem;
+    }
+
+    .concours-nom {
+        font-size: 1rem;
+        -webkit-line-clamp: 2;
+    }
+
+    .concours-subtitle {
+        font-size: 0.75rem;
+    }
+
+    .concours-badge {
+        font-size: 0.7rem;
+        padding: 3px 8px;
+    }
+
+    .btn-access {
+        padding: 12px 16px;
+        font-size: 0.8rem;
+        min-height: 44px;
+    }
+
+    .stats-number {
+        font-size: 2.5rem;
+    }
+
+    .stats-label {
+        font-size: 0.8rem;
+    }
+
     .footer-content {
         flex-wrap: wrap;
         gap: var(--space-xs);
+        font-size: 0.75rem;
+    }
+
+    /* Login on very small screens */
+    .login-logo-wrapper {
+        width: 100px;
+        height: 100px;
+    }
+
+    .login-logo {
+        width: 130px;
+        height: 130px;
+    }
+
+    .login-header h1 {
+        font-size: 1.5rem;
     }
 }
 

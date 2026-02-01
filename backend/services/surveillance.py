@@ -4,6 +4,8 @@ Boucle asynchrone de vérification et détection d'ouverture.
 """
 
 import asyncio
+import time
+from datetime import datetime
 from typing import Optional
 
 from backend.database import Database
@@ -40,6 +42,26 @@ class SurveillanceService:
             "button:has-text('Demande')",
             ".btn-demande",
             "[data-action='demande']",
+        ],
+        # Sélecteurs pour scraper les informations du concours
+        "date_debut": [
+            ".date-debut",
+            "[data-date-debut]",
+            ".concours-date-debut",
+            "span:has-text('Du') + span",
+        ],
+        "date_fin": [
+            ".date-fin",
+            "[data-date-fin]",
+            ".concours-date-fin",
+            "span:has-text('Au') + span",
+        ],
+        "lieu": [
+            ".lieu",
+            ".concours-lieu",
+            "[data-lieu]",
+            ".location",
+            "span:has-text('Lieu') + span",
         ],
     }
 
@@ -125,6 +147,13 @@ class SurveillanceService:
 
     async def _check_all_concours(self) -> None:
         """Vérifie l'état de tous les concours non notifiés."""
+        # Vérifier d'abord si la session est valide
+        if not self.auth.is_connected:
+            logger.warning("Session FFE non connectée, tentative de reconnexion...")
+            if not await self.auth.reconnect_with_backoff():
+                logger.error("Impossible de se reconnecter à FFE")
+                raise RuntimeError("Échec de reconnexion FFE")
+
         # Récupérer les concours à surveiller
         concours_list = await self.db.get_concours_non_notifies()
 
@@ -140,6 +169,20 @@ class SurveillanceService:
 
             try:
                 await self._check_concours(concours)
+            except RuntimeError as e:
+                # Session expirée ou erreur de navigation
+                if "login" in str(e).lower() or "reconnecter" in str(e).lower():
+                    logger.warning("Session expirée détectée, reconnexion avec backoff...")
+                    if await self.auth.reconnect_with_backoff():
+                        # Réessayer ce concours après reconnexion
+                        try:
+                            await self._check_concours(concours)
+                        except Exception as retry_e:
+                            logger.error(f"Erreur après reconnexion pour {concours['numero']}: {retry_e}")
+                    else:
+                        raise RuntimeError("Échec de reconnexion FFE après session expirée")
+                else:
+                    logger.error(f"Erreur vérification concours {concours['numero']}: {e}")
             except Exception as e:
                 logger.error(f"Erreur vérification concours {concours['numero']}: {e}")
                 continue
@@ -155,7 +198,12 @@ class SurveillanceService:
             concours: Données du concours depuis la base
         """
         numero = concours["numero"]
+        statut_before = concours.get("statut", "ferme")
         logger.debug(f"Vérification concours {numero}...")
+
+        start_time = time.time()
+        success = True
+        statut = None
 
         # Utiliser le rate limiter pour éviter de surcharger FFE
         async with rate_limiter:
@@ -170,19 +218,49 @@ class SurveillanceService:
                 )
             except RetryError as e:
                 logger.error(f"Impossible d'accéder au concours {numero}: {e}")
+                success = False
+                # Enregistrer l'échec dans l'historique
+                response_time_ms = int((time.time() - start_time) * 1000)
+                await self.db.record_check(
+                    concours_numero=numero,
+                    statut_before=statut_before,
+                    statut_after=None,
+                    response_time_ms=response_time_ms,
+                    success=False,
+                )
                 return
 
             # Détecter l'ouverture
             statut = await self._detect_opening(page)
+
+            # Scraper les informations de date/lieu si pas encore enregistrées
+            if not concours.get("date_debut"):
+                await self._scrape_concours_info(numero, page)
+
+        # Calculer le temps de réponse
+        response_time_ms = int((time.time() - start_time) * 1000)
+
+        # Déterminer le statut après vérification
+        statut_after = statut.value if statut else "ferme"
+
+        # Enregistrer dans l'historique
+        await self.db.record_check(
+            concours_numero=numero,
+            statut_before=statut_before,
+            statut_after=statut_after,
+            response_time_ms=response_time_ms,
+            success=True,
+        )
 
         # Mettre à jour le timestamp de dernière vérification
         await self.db.update_last_check(numero)
 
         # Si un bouton a été détecté
         if statut and statut != StatutConcours.FERME:
-            logger.info(f"🎯 Concours {numero} OUVERT ({statut.value})")
+            logger.info(f"Concours {numero} OUVERT ({statut.value})")
 
             # Envoyer la notification avec retry
+            notification_sent_at = None
             try:
                 notif_sent = await retry_async(
                     self.notifier.send_notification,
@@ -191,9 +269,18 @@ class SurveillanceService:
                     max_attempts=3,
                     base_delay=1.0,
                 )
+                if notif_sent:
+                    notification_sent_at = datetime.now().isoformat()
             except RetryError:
                 notif_sent = False
                 logger.error(f"Échec notification pour concours {numero}")
+
+            # Enregistrer l'événement d'ouverture
+            await self.db.record_opening(
+                concours_numero=numero,
+                statut=statut.value,
+                notification_sent_at=notification_sent_at,
+            )
 
             # Mettre à jour le statut en base
             await self.db.update_statut(numero, statut, notifie=notif_sent)
@@ -203,7 +290,7 @@ class SurveillanceService:
 
     async def _detect_opening(self, page) -> Optional[StatutConcours]:
         """
-        Détecte l'ouverture d'un concours via les boutons DOM.
+        Détecte l'ouverture d'un concours via les boutons DOM ou le texte.
 
         Args:
             page: Page Playwright du concours
@@ -230,6 +317,129 @@ class SurveillanceService:
                     return StatutConcours.DEMANDE
             except Exception:
                 continue
+
+        # Fallback: vérifier le texte "Ouvert aux engagements" dans la page
+        try:
+            page_content = await page.content()
+            import re
+            if re.search(r'[Oo]uvert(?:e)?(?:s)?\s+aux\s+engagements', page_content, re.IGNORECASE):
+                logger.debug("Texte 'Ouvert aux engagements' détecté")
+                return StatutConcours.ENGAGEMENT
+        except Exception:
+            pass
+
+        return None
+
+    async def _scrape_concours_info(self, numero: int, page) -> None:
+        """
+        Scrape les informations depuis la page du concours.
+        Utilise d'abord le scraper httpx léger, puis Playwright en fallback.
+
+        Args:
+            numero: Numéro du concours
+            page: Page Playwright du concours
+        """
+        from backend.services.scraper import scraper
+
+        # Utiliser le scraper httpx (plus fiable pour le parsing)
+        try:
+            info = await scraper.fetch_concours_info(numero)
+            if info.nom or info.lieu or info.date_debut:
+                await self.db.update_concours_info(
+                    numero=numero,
+                    nom=info.nom,
+                    lieu=info.lieu,
+                    date_debut=info.date_debut,
+                    date_fin=info.date_fin,
+                )
+                logger.debug(
+                    f"Infos concours {numero}: {info.nom}, "
+                    f"{info.date_debut} - {info.date_fin}, {info.lieu}"
+                )
+                return
+        except Exception as e:
+            logger.debug(f"Scraper httpx échoué pour {numero}: {e}")
+
+        # Fallback: essayer avec Playwright
+        date_debut = None
+        date_fin = None
+        lieu = None
+
+        # Essayer de récupérer la date de début
+        for selector in self.SELECTORS["date_debut"]:
+            try:
+                element = page.locator(selector).first
+                if await element.count() > 0:
+                    text = await element.text_content()
+                    if text:
+                        date_debut = self._parse_date(text.strip())
+                        break
+            except Exception:
+                continue
+
+        # Essayer de récupérer la date de fin
+        for selector in self.SELECTORS["date_fin"]:
+            try:
+                element = page.locator(selector).first
+                if await element.count() > 0:
+                    text = await element.text_content()
+                    if text:
+                        date_fin = self._parse_date(text.strip())
+                        break
+            except Exception:
+                continue
+
+        # Essayer de récupérer le lieu
+        for selector in self.SELECTORS["lieu"]:
+            try:
+                element = page.locator(selector).first
+                if await element.count() > 0:
+                    text = await element.text_content()
+                    if text:
+                        lieu = text.strip()
+                        break
+            except Exception:
+                continue
+
+        # Mettre à jour en base si on a trouvé des informations
+        if date_debut or date_fin or lieu:
+            await self.db.update_concours_info(
+                numero=numero,
+                date_debut=date_debut,
+                date_fin=date_fin,
+                lieu=lieu,
+            )
+            logger.debug(f"Infos concours {numero} (Playwright): {date_debut} - {date_fin}, {lieu}")
+
+    def _parse_date(self, date_str: str) -> Optional[str]:
+        """
+        Parse une date en format ISO.
+
+        Args:
+            date_str: Date en format texte (ex: "15/01/2024")
+
+        Returns:
+            Date en format ISO ou None
+        """
+        import re
+
+        # Essayer différents formats de date
+        patterns = [
+            (r"(\d{2})/(\d{2})/(\d{4})", lambda m: f"{m.group(3)}-{m.group(2)}-{m.group(1)}"),
+            (r"(\d{4})-(\d{2})-(\d{2})", lambda m: m.group(0)),
+            (r"(\d{2})-(\d{2})-(\d{4})", lambda m: f"{m.group(3)}-{m.group(2)}-{m.group(1)}"),
+        ]
+
+        for pattern, formatter in patterns:
+            match = re.search(pattern, date_str)
+            if match:
+                try:
+                    date_iso = formatter(match)
+                    # Valider que c'est une date valide
+                    datetime.fromisoformat(date_iso)
+                    return date_iso
+                except ValueError:
+                    continue
 
         return None
 

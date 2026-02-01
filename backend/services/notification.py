@@ -1,15 +1,11 @@
 """
 Service de notification pour EngageWatch.
-Supporte Telegram et Email pour envoyer des alertes lors de l'ouverture des concours.
+Supporte Telegram et Email (via Resend) pour envoyer des alertes lors de l'ouverture des concours.
 """
 
-import ssl
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 from typing import Optional, Protocol
 
 import httpx
-import aiosmtplib
 
 from backend.config import settings
 from backend.models import StatutConcours
@@ -230,90 +226,79 @@ Vous recevrez une notification dès qu'un concours surveillé s'ouvrira aux enga
             self._client = None
 
 
-class EmailNotifier:
+class ResendNotifier:
     """
-    Gestionnaire de notifications par email.
+    Gestionnaire de notifications par email via Resend.
 
-    Envoie des emails formatés via SMTP.
+    Envoie des emails formatés via l'API Resend.
     """
+
+    RESEND_API_URL = "https://api.resend.com/emails"
 
     def __init__(
         self,
-        smtp_host: str,
-        smtp_port: int,
-        smtp_username: str,
-        smtp_password: str,
+        api_key: str,
         from_email: str,
         to_email: str,
-        use_tls: bool = True,
     ):
         """
-        Initialise le notifier Email.
+        Initialise le notifier Resend.
 
         Args:
-            smtp_host: Serveur SMTP
-            smtp_port: Port SMTP
-            smtp_username: Nom d'utilisateur SMTP
-            smtp_password: Mot de passe SMTP
+            api_key: Clé API Resend
             from_email: Adresse email expéditeur
             to_email: Adresse email destinataire
-            use_tls: Utiliser TLS (STARTTLS)
         """
-        self.smtp_host = smtp_host
-        self.smtp_port = smtp_port
-        self.smtp_username = smtp_username
-        self.smtp_password = smtp_password
+        self.api_key = api_key
         self.from_email = from_email
         self.to_email = to_email
-        self.use_tls = use_tls
+        self._client: Optional[httpx.AsyncClient] = None
 
-    async def _send_email(self, subject: str, html_body: str, text_body: str) -> bool:
+    async def _get_client(self) -> httpx.AsyncClient:
+        """Retourne le client HTTP, le crée si nécessaire."""
+        if self._client is None:
+            self._client = httpx.AsyncClient(timeout=10.0)
+        return self._client
+
+    async def _send_email(self, subject: str, html_body: str) -> bool:
         """
-        Envoie un email via SMTP.
+        Envoie un email via l'API Resend.
 
         Args:
             subject: Sujet de l'email
             html_body: Corps de l'email en HTML
-            text_body: Corps de l'email en texte brut
 
         Returns:
             True si envoi réussi, False sinon
         """
         try:
-            # Créer le message multipart
-            message = MIMEMultipart("alternative")
-            message["Subject"] = subject
-            message["From"] = self.from_email
-            message["To"] = self.to_email
+            client = await self._get_client()
 
-            # Ajouter les versions texte et HTML
-            part_text = MIMEText(text_body, "plain", "utf-8")
-            part_html = MIMEText(html_body, "html", "utf-8")
-            message.attach(part_text)
-            message.attach(part_html)
-
-            # Configurer TLS
-            tls_context = ssl.create_default_context() if self.use_tls else None
-
-            # Envoyer l'email
-            await aiosmtplib.send(
-                message,
-                hostname=self.smtp_host,
-                port=self.smtp_port,
-                username=self.smtp_username,
-                password=self.smtp_password,
-                start_tls=self.use_tls,
-                tls_context=tls_context,
+            response = await client.post(
+                self.RESEND_API_URL,
+                headers={
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "from": self.from_email,
+                    "to": [self.to_email],
+                    "subject": subject,
+                    "html": html_body,
+                },
             )
 
-            logger.info(f"Email envoyé avec succès à {self.to_email}")
-            return True
+            if response.status_code == 200:
+                logger.info(f"Email Resend envoyé avec succès à {self.to_email}")
+                return True
+            else:
+                logger.error(
+                    f"Erreur Resend ({response.status_code}): {response.text}"
+                )
+                return False
 
-        except aiosmtplib.SMTPException as e:
-            logger.error(f"Erreur SMTP lors de l'envoi: {e}")
-            return False
         except Exception as e:
-            logger.error(f"Erreur envoi email: {e}")
+            logger.error(f"Erreur envoi email Resend: {e}")
             return False
 
     async def send_notification(
@@ -331,16 +316,16 @@ class EmailNotifier:
         Returns:
             True si envoi réussi, False sinon
         """
-        subject, html_body, text_body = self._format_notification(numero, statut)
+        subject, html_body = self._format_notification(numero, statut)
 
-        result = await self._send_email(subject, html_body, text_body)
+        result = await self._send_email(subject, html_body)
         if result:
-            logger.info(f"Notification email envoyée pour concours {numero}")
+            logger.info(f"Notification email Resend envoyée pour concours {numero}")
         return result
 
     def _format_notification(
         self, numero: int, statut: StatutConcours
-    ) -> tuple[str, str, str]:
+    ) -> tuple[str, str]:
         """
         Formate la notification pour l'email.
 
@@ -349,7 +334,7 @@ class EmailNotifier:
             statut: Type d'ouverture
 
         Returns:
-            Tuple (sujet, html, texte)
+            Tuple (sujet, html)
         """
         if statut == StatutConcours.ENGAGEMENT:
             type_ouverture = "Engagement"
@@ -449,20 +434,7 @@ class EmailNotifier:
 </html>
 """
 
-        text_body = f"""
-CONCOURS OUVERT !
-
-Numéro du concours : #{numero}
-Type d'ouverture : {type_ouverture}
-Action disponible : Bouton "{type_ouverture}" visible
-
-Accéder au concours : {url}
-
----
-EngageWatch - Surveillance Premium des Concours FFE
-"""
-
-        return subject, html_body, text_body
+        return subject, html_body
 
     async def send_startup_message(self) -> bool:
         """
@@ -493,9 +465,6 @@ EngageWatch - Surveillance Premium des Concours FFE
                                 La surveillance des concours FFE est maintenant active.<br><br>
                                 Vous recevrez une notification dès qu'un concours surveillé s'ouvrira aux engagements.
                             </p>
-                            <p style="color: rgba(245,240,232,0.5); font-size: 14px; margin-top: 30px;">
-                                Interface : <a href="http://localhost:8000" style="color: #C9A227;">http://localhost:8000</a>
-                            </p>
                         </td>
                     </tr>
                 </table>
@@ -506,17 +475,7 @@ EngageWatch - Surveillance Premium des Concours FFE
 </html>
 """
 
-        text_body = """
-EngageWatch démarré
-
-La surveillance des concours FFE est active.
-
-Vous recevrez une notification dès qu'un concours surveillé s'ouvrira aux engagements.
-
-Interface : http://localhost:8000
-"""
-
-        return await self._send_email(subject, html_body, text_body)
+        return await self._send_email(subject, html_body)
 
     async def send_error_message(self, error: str) -> bool:
         """
@@ -562,19 +521,13 @@ Interface : http://localhost:8000
 </html>
 """
 
-        text_body = f"""
-Erreur EngageWatch
-
-{error}
-
-Vérifiez l'application.
-"""
-
-        return await self._send_email(subject, html_body, text_body)
+        return await self._send_email(subject, html_body)
 
     async def close(self) -> None:
-        """Ferme les ressources (rien à faire pour l'email)."""
-        pass
+        """Ferme le client HTTP."""
+        if self._client:
+            await self._client.aclose()
+            self._client = None
 
 
 class MultiNotifier:
@@ -596,20 +549,16 @@ class MultiNotifier:
         self.notifiers.append(self.telegram)
         logger.info("Notifier Telegram initialisé")
 
-        # Ajouter Email si configuré
-        self.email: Optional[EmailNotifier] = None
+        # Ajouter Email via Resend si configuré
+        self.email: Optional[ResendNotifier] = None
         if settings.email_configured:
-            self.email = EmailNotifier(
-                smtp_host=settings.email_smtp_host,
-                smtp_port=settings.email_smtp_port,
-                smtp_username=settings.email_smtp_username,
-                smtp_password=settings.email_smtp_password,
+            self.email = ResendNotifier(
+                api_key=settings.resend_api_key,
                 from_email=settings.email_from,
                 to_email=settings.email_to,
-                use_tls=settings.email_smtp_use_tls,
             )
             self.notifiers.append(self.email)
-            logger.info("Notifier Email initialisé")
+            logger.info("Notifier Email (Resend) initialisé")
         else:
             logger.info("Notifier Email désactivé (non configuré)")
 

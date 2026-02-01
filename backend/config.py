@@ -15,6 +15,7 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
+        extra="ignore",  # Ignorer les variables non définies dans la classe
     )
 
     # Application Authentication
@@ -31,14 +32,10 @@ class Settings(BaseSettings):
     telegram_bot_token: str
     telegram_chat_id: str
 
-    # Email (optionnel)
+    # Email via Resend (optionnel)
     email_enabled: bool = False
-    email_smtp_host: str = "smtp.gmail.com"
-    email_smtp_port: int = 587
-    email_smtp_use_tls: bool = True
-    email_smtp_username: Optional[str] = None
-    email_smtp_password: Optional[str] = None
-    email_from: Optional[str] = None
+    resend_api_key: Optional[str] = None
+    email_from: str = "EngageWatch <onboarding@resend.dev>"
     email_to: Optional[str] = None
 
     # Application
@@ -66,12 +63,10 @@ class Settings(BaseSettings):
 
     @property
     def email_configured(self) -> bool:
-        """Vérifie si l'email est correctement configuré."""
+        """Vérifie si l'email via Resend est correctement configuré."""
         return (
             self.email_enabled
-            and self.email_smtp_username is not None
-            and self.email_smtp_password is not None
-            and self.email_from is not None
+            and self.resend_api_key is not None
             and self.email_to is not None
         )
 

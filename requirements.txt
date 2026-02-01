@@ -13,7 +13,7 @@ aiosqlite>=0.19.0
 
 # Notifications
 python-telegram-bot>=20.7
-aiosmtplib>=3.0.0
+# Email via Resend (uses httpx)
 
 # Configuration
 python-dotenv>=1.0.0

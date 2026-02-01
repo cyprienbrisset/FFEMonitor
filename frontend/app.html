@@ -9,6 +9,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/style.css">
     <link rel="icon" type="image/svg+xml" href="/static/logo.svg">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body>
     <!-- Noise texture overlay -->
@@ -26,6 +28,22 @@
                 <p class="tagline">Surveillance Premium des Concours FFE</p>
             </div>
             <div class="header-actions">
+                <button id="themeToggle" class="btn-theme" title="Changer de thème">
+                    <svg class="icon-sun" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"/>
+                        <line x1="12" y1="1" x2="12" y2="3"/>
+                        <line x1="12" y1="21" x2="12" y2="23"/>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                        <line x1="1" y1="12" x2="3" y2="12"/>
+                        <line x1="21" y1="12" x2="23" y2="12"/>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                    </svg>
+                    <svg class="icon-moon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                    </svg>
+                </button>
                 <a href="/guide" class="btn-guide" title="Guide utilisateur">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
@@ -113,7 +131,33 @@
                 <div class="stats-decoration"></div>
             </section>
 
-            <!-- Concours List Card - Full Width -->
+            <!-- Global Stats Card -->
+            <section class="bento-card card-global-stats">
+                <div class="card-header">
+                    <span class="card-icon">📊</span>
+                    <h2>Statistiques</h2>
+                </div>
+                <div class="global-stats-grid">
+                    <div class="stat-item">
+                        <span class="stat-value" id="statTotalChecks">0</span>
+                        <span class="stat-label">Vérifications</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="statChecksToday">0</span>
+                        <span class="stat-label">Aujourd'hui</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="statOpenings">0</span>
+                        <span class="stat-label">Ouvertures</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="statAvgTime">0</span>
+                        <span class="stat-label">ms moy.</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Concours List Card -->
             <section class="bento-card card-list">
                 <div class="card-header">
                     <span class="card-icon">☰</span>
@@ -133,6 +177,48 @@
 
                 <div id="concoursContainer" class="concours-grid" style="display: none;">
                     <!-- Concours cards will be inserted here -->
+                </div>
+            </section>
+
+            <!-- Calendar Card -->
+            <section class="bento-card card-calendar">
+                <div class="card-header">
+                    <span class="card-icon">📅</span>
+                    <h2>Calendrier</h2>
+                    <div class="calendar-nav">
+                        <button class="cal-nav-btn" id="calPrev" title="Mois précédent">←</button>
+                        <span class="cal-month-label" id="calMonthLabel"></span>
+                        <button class="cal-nav-btn" id="calNext" title="Mois suivant">→</button>
+                    </div>
+                </div>
+                <div class="calendar-grid" id="calendarGrid">
+                    <div class="cal-header">Lun</div>
+                    <div class="cal-header">Mar</div>
+                    <div class="cal-header">Mer</div>
+                    <div class="cal-header">Jeu</div>
+                    <div class="cal-header">Ven</div>
+                    <div class="cal-header">Sam</div>
+                    <div class="cal-header">Dim</div>
+                </div>
+                <div class="calendar-legend">
+                    <span class="legend-item"><span class="legend-dot engagement"></span> Engagement ouvert</span>
+                    <span class="legend-item"><span class="legend-dot demande"></span> Demande ouverte</span>
+                    <span class="legend-item"><span class="legend-dot ferme"></span> Fermé</span>
+                </div>
+            </section>
+
+            <!-- Activity Chart Card -->
+            <section class="bento-card card-chart">
+                <div class="card-header">
+                    <span class="card-icon">📈</span>
+                    <h2>Activité</h2>
+                    <div class="chart-period-toggle">
+                        <button class="period-btn active" data-period="24h">24h</button>
+                        <button class="period-btn" data-period="7d">7 jours</button>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="activityChart"></canvas>
                 </div>
             </section>
         </main>
@@ -157,9 +243,48 @@
         const API_BASE = '';
         const REFRESH_INTERVAL = 3000;
         const TOKEN_KEY = 'ffemonitor_token';
+        const THEME_KEY = 'ffemonitor_theme';
 
         let refreshTimer = null;
         let authToken = localStorage.getItem(TOKEN_KEY);
+
+        // ============================================================================
+        // Theme Manager
+        // ============================================================================
+
+        const ThemeManager = {
+            init() {
+                const savedTheme = localStorage.getItem(THEME_KEY);
+                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                const theme = savedTheme || (prefersDark ? 'dark' : 'light');
+                this.setTheme(theme);
+
+                // Listen for system theme changes
+                window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+                    if (!localStorage.getItem(THEME_KEY)) {
+                        this.setTheme(e.matches ? 'dark' : 'light');
+                    }
+                });
+            },
+
+            setTheme(theme) {
+                document.documentElement.setAttribute('data-theme', theme);
+                localStorage.setItem(THEME_KEY, theme);
+            },
+
+            toggle() {
+                const current = document.documentElement.getAttribute('data-theme') || 'dark';
+                const newTheme = current === 'dark' ? 'light' : 'dark';
+                this.setTheme(newTheme);
+            },
+
+            get current() {
+                return document.documentElement.getAttribute('data-theme') || 'dark';
+            }
+        };
+
+        // Initialize theme immediately to prevent flash
+        ThemeManager.init();
 
         // Vérification immédiate de l'authentification
         if (!authToken) {
@@ -189,12 +314,54 @@
             }
         }
 
+        // Activity Chart instance
+        let activityChart = null;
+        let currentPeriod = '24h';
+
+        // Calendar state
+        let calendarMonth = new Date().getMonth() + 1;
+        let calendarYear = new Date().getFullYear();
+        let calendarEvents = [];
+
         function initApp() {
             document.getElementById('addForm').addEventListener('submit', handleAddConcours);
             document.getElementById('logoutButton').addEventListener('click', logout);
+            document.getElementById('themeToggle').addEventListener('click', () => ThemeManager.toggle());
+
+            // Initialize chart period toggle buttons
+            document.querySelectorAll('.period-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+                    e.target.classList.add('active');
+                    currentPeriod = e.target.dataset.period;
+                    loadActivityChart();
+                });
+            });
+
+            // Initialize calendar navigation
+            document.getElementById('calPrev').addEventListener('click', () => {
+                calendarMonth--;
+                if (calendarMonth < 1) {
+                    calendarMonth = 12;
+                    calendarYear--;
+                }
+                loadCalendar();
+            });
+
+            document.getElementById('calNext').addEventListener('click', () => {
+                calendarMonth++;
+                if (calendarMonth > 12) {
+                    calendarMonth = 1;
+                    calendarYear++;
+                }
+                loadCalendar();
+            });
 
             loadConcours();
             loadStatus();
+            loadGlobalStats();
+            loadActivityChart();
+            loadCalendar();
             startAutoRefresh();
         }
 
@@ -203,6 +370,7 @@
             refreshTimer = setInterval(() => {
                 loadConcours();
                 loadStatus();
+                loadGlobalStats();
             }, REFRESH_INTERVAL);
         }
 
@@ -258,6 +426,284 @@
                 console.error('Erreur chargement status:', error);
                 updateStatusBar({ ffe_connected: false, surveillance_active: false });
             }
+        }
+
+        async function loadGlobalStats() {
+            try {
+                const response = await authenticatedFetch(`${API_BASE}/stats/global`);
+                if (!response.ok) throw new Error('Erreur stats');
+
+                const data = await response.json();
+                updateGlobalStats(data);
+            } catch (error) {
+                if (error.message !== 'Session expirée') {
+                    console.error('Erreur chargement stats:', error);
+                }
+            }
+        }
+
+        function updateGlobalStats(stats) {
+            document.getElementById('statTotalChecks').textContent = formatNumber(stats.total_checks);
+            document.getElementById('statChecksToday').textContent = formatNumber(stats.checks_today);
+            document.getElementById('statOpenings').textContent = formatNumber(stats.total_openings);
+            document.getElementById('statAvgTime').textContent = Math.round(stats.avg_response_time_ms);
+        }
+
+        function formatNumber(num) {
+            if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+            if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+            return num.toString();
+        }
+
+        async function loadActivityChart() {
+            try {
+                const response = await authenticatedFetch(`${API_BASE}/stats/activity?period=${currentPeriod}`);
+                if (!response.ok) throw new Error('Erreur activity data');
+
+                const data = await response.json();
+                renderActivityChart(data);
+            } catch (error) {
+                if (error.message !== 'Session expirée') {
+                    console.error('Erreur chargement activité:', error);
+                }
+            }
+        }
+
+        // ============================================================================
+        // Calendar
+        // ============================================================================
+
+        async function loadCalendar() {
+            try {
+                // Update month label
+                const monthNames = [
+                    'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+                    'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
+                ];
+                document.getElementById('calMonthLabel').textContent =
+                    `${monthNames[calendarMonth - 1]} ${calendarYear}`;
+
+                // Fetch events for this month
+                const response = await authenticatedFetch(
+                    `${API_BASE}/calendar/events?month=${calendarMonth}&year=${calendarYear}`
+                );
+
+                if (response.ok) {
+                    const data = await response.json();
+                    calendarEvents = data.events;
+                }
+
+                renderCalendar();
+            } catch (error) {
+                if (error.message !== 'Session expirée') {
+                    console.error('Erreur chargement calendrier:', error);
+                }
+                renderCalendar();
+            }
+        }
+
+        function renderCalendar() {
+            const grid = document.getElementById('calendarGrid');
+
+            // Clear existing days (keep headers) using safe DOM methods
+            const existingDays = grid.querySelectorAll('.cal-day');
+            existingDays.forEach(day => day.remove());
+
+            // Get first day of month and total days
+            const firstDay = new Date(calendarYear, calendarMonth - 1, 1);
+            const lastDay = new Date(calendarYear, calendarMonth, 0);
+            const totalDays = lastDay.getDate();
+
+            // Adjust for Monday start (0 = Monday, 6 = Sunday)
+            let startDay = firstDay.getDay() - 1;
+            if (startDay < 0) startDay = 6;
+
+            // Today for highlighting
+            const today = new Date();
+            const isCurrentMonth = today.getMonth() + 1 === calendarMonth && today.getFullYear() === calendarYear;
+
+            // Create events map by day
+            const eventsByDay = {};
+            calendarEvents.forEach(event => {
+                if (event.date_debut) {
+                    const date = new Date(event.date_debut);
+                    if (date.getMonth() + 1 === calendarMonth && date.getFullYear() === calendarYear) {
+                        const day = date.getDate();
+                        if (!eventsByDay[day]) eventsByDay[day] = [];
+                        eventsByDay[day].push(event);
+                    }
+                }
+            });
+
+            // Add empty cells for days before month starts
+            for (let i = 0; i < startDay; i++) {
+                const emptyCell = document.createElement('div');
+                emptyCell.className = 'cal-day empty';
+                grid.appendChild(emptyCell);
+            }
+
+            // Add days
+            for (let day = 1; day <= totalDays; day++) {
+                const dayCell = document.createElement('div');
+                dayCell.className = 'cal-day';
+
+                if (isCurrentMonth && day === today.getDate()) {
+                    dayCell.classList.add('today');
+                }
+
+                const dayNumber = document.createElement('span');
+                dayNumber.className = 'cal-day-number';
+                dayNumber.textContent = day;
+                dayCell.appendChild(dayNumber);
+
+                // Add event dots if there are events
+                const dayEvents = eventsByDay[day];
+                if (dayEvents && dayEvents.length > 0) {
+                    dayCell.classList.add('has-event');
+
+                    const dotsContainer = document.createElement('div');
+                    dotsContainer.className = 'cal-event-dots';
+
+                    // Show up to 3 dots
+                    dayEvents.slice(0, 3).forEach(event => {
+                        const dot = document.createElement('span');
+                        dot.className = `cal-event-dot ${event.statut}`;
+                        dotsContainer.appendChild(dot);
+                    });
+
+                    dayCell.appendChild(dotsContainer);
+
+                    // Add tooltip with concours name
+                    const tooltip = document.createElement('div');
+                    tooltip.className = 'cal-tooltip';
+                    const tooltipText = dayEvents.map(e => e.nom || `#${e.numero}`).join(', ');
+                    tooltip.textContent = tooltipText;
+                    dayCell.appendChild(tooltip);
+
+                    // Click to open FFE page
+                    dayCell.addEventListener('click', () => {
+                        const firstEvent = dayEvents[0];
+                        window.open(`https://ffecompet.ffe.com/concours/${encodeURIComponent(firstEvent.numero)}`, '_blank');
+                    });
+                }
+
+                grid.appendChild(dayCell);
+            }
+        }
+
+        function renderActivityChart(data) {
+            const ctx = document.getElementById('activityChart');
+            if (!ctx) return;
+
+            // Get computed styles for theme-aware colors
+            const computedStyle = getComputedStyle(document.documentElement);
+            const goldColor = computedStyle.getPropertyValue('--gold').trim() || '#C9A227';
+            const successColor = computedStyle.getPropertyValue('--success-light').trim() || '#5D9B70';
+            const creamColor = computedStyle.getPropertyValue('--cream').trim() || '#F5F0E8';
+
+            // Destroy existing chart
+            if (activityChart) {
+                activityChart.destroy();
+            }
+
+            activityChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.labels,
+                    datasets: [
+                        {
+                            label: 'Vérifications',
+                            data: data.checks,
+                            borderColor: goldColor,
+                            backgroundColor: goldColor + '20',
+                            borderWidth: 2,
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 3,
+                            pointHoverRadius: 5,
+                        },
+                        {
+                            label: 'Ouvertures',
+                            data: data.openings,
+                            borderColor: successColor,
+                            backgroundColor: successColor + '20',
+                            borderWidth: 2,
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 4,
+                            pointHoverRadius: 6,
+                            pointStyle: 'star',
+                        },
+                    ],
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            align: 'end',
+                            labels: {
+                                color: creamColor,
+                                usePointStyle: true,
+                                padding: 15,
+                                font: {
+                                    family: "'DM Sans', sans-serif",
+                                    size: 11,
+                                },
+                            },
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(26, 26, 26, 0.9)',
+                            titleColor: creamColor,
+                            bodyColor: creamColor,
+                            borderColor: goldColor,
+                            borderWidth: 1,
+                            padding: 12,
+                            titleFont: {
+                                family: "'DM Sans', sans-serif",
+                                weight: '600',
+                            },
+                            bodyFont: {
+                                family: "'DM Sans', sans-serif",
+                            },
+                        },
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                color: 'rgba(245, 240, 232, 0.06)',
+                            },
+                            ticks: {
+                                color: 'rgba(245, 240, 232, 0.5)',
+                                font: {
+                                    family: "'DM Sans', sans-serif",
+                                    size: 10,
+                                },
+                            },
+                        },
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(245, 240, 232, 0.06)',
+                            },
+                            ticks: {
+                                color: 'rgba(245, 240, 232, 0.5)',
+                                font: {
+                                    family: "'DM Sans', sans-serif",
+                                    size: 10,
+                                },
+                                stepSize: 1,
+                            },
+                        },
+                    },
+                },
+            });
         }
 
         async function handleAddConcours(event) {
@@ -346,14 +792,31 @@
                 const header = document.createElement('div');
                 header.className = 'concours-header';
 
-                const numero = document.createElement('div');
-                numero.className = 'concours-numero';
-                const link = document.createElement('a');
-                link.href = `https://ffecompet.ffe.com/concours/${encodeURIComponent(c.numero)}`;
-                link.target = '_blank';
-                link.rel = 'noopener noreferrer';
-                link.textContent = `#${c.numero}`;
-                numero.appendChild(link);
+                const titleWrapper = document.createElement('div');
+                titleWrapper.className = 'concours-title-wrapper';
+
+                // Nom du concours (titre principal)
+                const nom = document.createElement('div');
+                nom.className = 'concours-nom';
+                nom.textContent = c.nom || `#${c.numero}`;
+
+                // Sous-titre: lieu et date (numéro seulement si on a un nom)
+                const subtitle = document.createElement('div');
+                subtitle.className = 'concours-subtitle';
+                let subtitleParts = [];
+                if (c.nom) {
+                    subtitleParts.push(`#${c.numero}`);
+                }
+                if (c.lieu && (!c.nom || !c.nom.includes(c.lieu))) {
+                    subtitleParts.push(c.lieu);
+                }
+                if (c.date_debut) {
+                    subtitleParts.push(formatDateShort(c.date_debut));
+                }
+                subtitle.textContent = subtitleParts.join(' • ');
+
+                titleWrapper.appendChild(nom);
+                titleWrapper.appendChild(subtitle);
 
                 const actions = document.createElement('div');
                 actions.className = 'concours-actions';
@@ -364,7 +827,7 @@
                 deleteBtn.addEventListener('click', () => deleteConcours(c.numero));
                 actions.appendChild(deleteBtn);
 
-                header.appendChild(numero);
+                header.appendChild(titleWrapper);
                 header.appendChild(actions);
 
                 const meta = document.createElement('div');
@@ -375,18 +838,34 @@
                 statusBadge.textContent = formatStatut(c.statut);
                 meta.appendChild(statusBadge);
 
-                const notifBadge = document.createElement('span');
-                notifBadge.className = `concours-badge badge-notif ${c.notifie ? 'sent' : 'pending'}`;
-                notifBadge.textContent = c.notifie ? 'Notifié' : 'En attente';
-                meta.appendChild(notifBadge);
+                // Badge notification seulement si le concours est ouvert
+                if (c.statut !== 'ferme') {
+                    const notifBadge = document.createElement('span');
+                    notifBadge.className = `concours-badge badge-notif ${c.notifie ? 'sent' : 'pending'}`;
+                    notifBadge.textContent = c.notifie ? 'Notification envoyée' : 'Notification en attente';
+                    meta.appendChild(notifBadge);
+                }
 
                 const timeInfo = document.createElement('div');
                 timeInfo.className = 'concours-time';
                 timeInfo.textContent = `Dernière vérification : ${formatDate(c.last_check)}`;
 
+                const accessBtn = document.createElement('a');
+                accessBtn.href = `https://ffecompet.ffe.com/concours/${encodeURIComponent(c.numero)}`;
+                accessBtn.target = '_blank';
+                accessBtn.rel = 'noopener noreferrer';
+                accessBtn.className = 'btn-access';
+                accessBtn.innerHTML = `
+                    <span>Accéder au concours</span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M7 17L17 7M17 7H7M17 7V17"/>
+                    </svg>
+                `;
+
                 card.appendChild(header);
                 card.appendChild(meta);
                 card.appendChild(timeInfo);
+                card.appendChild(accessBtn);
 
                 container.appendChild(card);
             });
@@ -432,6 +911,14 @@
             const date = new Date(isoString);
             return date.toLocaleString('fr-FR', {
                 day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit'
+            });
+        }
+
+        function formatDateShort(isoString) {
+            if (!isoString) return '';
+            const date = new Date(isoString);
+            return date.toLocaleDateString('fr-FR', {
+                day: 'numeric', month: 'short'
             });
         }
 

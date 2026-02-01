@@ -15,7 +15,7 @@ from jose import jwt, JWTError
 
 from backend.config import settings
 from backend.database import db
-from backend.routers import health, concours, auth
+from backend.routers import health, concours, auth, stats, calendar
 from backend.utils.logger import setup_logger, get_logger
 
 # Configuration du logger principal
@@ -144,6 +144,8 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(health.router)
 app.include_router(concours.router)
+app.include_router(stats.router)
+app.include_router(calendar.router)
 
 # Servir les fichiers statiques du frontend
 frontend_path = Path(__file__).parent.parent / "frontend"

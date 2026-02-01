@@ -15,6 +15,12 @@ from backend.utils.logger import get_logger
 
 logger = get_logger("auth")
 
+# Reconnection backoff parameters
+MAX_RECONNECT_ATTEMPTS = 5
+INITIAL_BACKOFF = 2.0  # seconds
+MAX_BACKOFF = 300.0  # 5 minutes
+BACKOFF_MULTIPLIER = 2.0
+
 
 class FFEAuthenticator:
     """
@@ -261,7 +267,7 @@ class FFEAuthenticator:
 
     async def reconnect(self) -> bool:
         """
-        Tente une reconnexion automatique.
+        Tente une reconnexion automatique simple.
 
         Returns:
             True si reconnexion réussie, False sinon
@@ -278,6 +284,46 @@ class FFEAuthenticator:
             self._page = await self._context.new_page()
 
         return await self._perform_login()
+
+    async def reconnect_with_backoff(self) -> bool:
+        """
+        Tente une reconnexion avec backoff exponentiel.
+
+        Utilise un délai croissant entre les tentatives pour éviter
+        de surcharger le serveur FFE en cas de problèmes prolongés.
+
+        Returns:
+            True si reconnexion réussie après N tentatives, False sinon
+        """
+        backoff = INITIAL_BACKOFF
+
+        for attempt in range(1, MAX_RECONNECT_ATTEMPTS + 1):
+            logger.info(
+                f"Tentative de reconnexion {attempt}/{MAX_RECONNECT_ATTEMPTS} "
+                f"(backoff: {backoff:.1f}s)"
+            )
+
+            # Attendre avant la tentative (sauf la première)
+            if attempt > 1:
+                await asyncio.sleep(backoff)
+                # Augmenter le backoff pour la prochaine tentative
+                backoff = min(backoff * BACKOFF_MULTIPLIER, MAX_BACKOFF)
+
+            try:
+                success = await self.reconnect()
+                if success:
+                    logger.info(
+                        f"Reconnexion réussie après {attempt} tentative(s)"
+                    )
+                    return True
+            except Exception as e:
+                logger.warning(f"Erreur lors de la tentative {attempt}: {e}")
+                continue
+
+        logger.error(
+            f"Échec de reconnexion après {MAX_RECONNECT_ATTEMPTS} tentatives"
+        )
+        return False
 
     async def navigate_to_concours(self, numero: int) -> Page:
         """
