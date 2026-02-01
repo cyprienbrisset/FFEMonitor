@@ -1,5 +1,5 @@
 """
-Service de notification pour EngageWatch.
+Service de notification pour FFE Monitor.
 Supporte Telegram et Email (via Resend) pour envoyer des alertes lors de l'ouverture des concours.
 """
 
@@ -172,7 +172,7 @@ class TelegramNotifier:
 
 🔗 <a href="{url}">Accéder au concours FFE</a>
 
-<i>EngageWatch • #{numero}</i>"""
+<i>🐴 FFE Monitor • #{numero}</i>"""
 
         return message.strip()
 
@@ -195,15 +195,15 @@ class TelegramNotifier:
         Returns:
             True si envoi réussi, False sinon
         """
-        message = """
-🚀 <b>EngageWatch démarré</b>
+        message = """🐴 <b>FFE Monitor</b>
 
-La surveillance des concours FFE est active.
+━━━━━━━━━━━━━━━━━━
 
-Vous recevrez une notification dès qu'un concours surveillé s'ouvrira aux engagements.
+✅ Surveillance active
 
-<i>Interface : http://localhost:8000</i>
-"""
+Vous recevrez une notification dès qu'un concours s'ouvrira aux engagements.
+
+🔗 <a href="http://localhost:8000">Ouvrir l'interface</a>"""
 
         try:
             client = await self._get_client()
@@ -234,13 +234,15 @@ Vous recevrez une notification dès qu'un concours surveillé s'ouvrira aux enga
         Returns:
             True si envoi réussi, False sinon
         """
-        message = f"""
-⚠️ <b>Erreur EngageWatch</b>
+        message = f"""🐴 <b>FFE Monitor</b>
+
+━━━━━━━━━━━━━━━━━━
+
+⚠️ <b>Erreur</b>
 
 {error}
 
-<i>Vérifiez l'application.</i>
-"""
+<i>Vérifiez l'application.</i>"""
 
         try:
             client = await self._get_client()
@@ -267,13 +269,13 @@ Vous recevrez une notification dès qu'un concours surveillé s'ouvrira aux enga
         Returns:
             True si envoi réussi, False sinon
         """
-        message = """
-🧪 <b>Test Notification</b>
+        message = """🐴 <b>FFE Monitor</b>
 
-Ceci est un message de test EngageWatch.
+━━━━━━━━━━━━━━━━━━
 
-Si vous recevez ce message, les notifications Telegram fonctionnent correctement !
-"""
+🧪 <b>Test réussi !</b>
+
+Les notifications Telegram fonctionnent correctement."""
 
         try:
             client = await self._get_client()
@@ -549,7 +551,7 @@ class ResendNotifier:
                     <tr>
                         <td align="center">
                             <p style="color: rgba(245,240,232,0.4); font-size: 12px; margin: 0;">
-                                EngageWatch — Surveillance des Concours FFE
+                                🐴 FFE Monitor — Surveillance des Concours FFE
                             </p>
                         </td>
                     </tr>
@@ -570,7 +572,7 @@ class ResendNotifier:
         Returns:
             True si envoi réussi, False sinon
         """
-        subject = "🚀 EngageWatch démarré"
+        subject = "🐴 FFE Monitor - Surveillance active"
 
         html_body = """
 <!DOCTYPE html>
@@ -585,12 +587,15 @@ class ResendNotifier:
                 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background: linear-gradient(135deg, #2D4A3E, #3D5F50); border-radius: 16px; padding: 40px;">
                     <tr>
                         <td align="center">
-                            <h1 style="color: #F5F0E8; margin: 0 0 20px 0; font-size: 24px;">
-                                🚀 EngageWatch démarré
+                            <p style="font-size: 48px; margin: 0 0 16px 0;">🐴</p>
+                            <h1 style="color: #F5F0E8; margin: 0 0 8px 0; font-size: 24px; font-weight: 600;">
+                                FFE Monitor
                             </h1>
+                            <p style="color: rgba(245,240,232,0.6); font-size: 14px; text-transform: uppercase; letter-spacing: 2px; margin: 0 0 24px 0;">
+                                ✅ Surveillance active
+                            </p>
                             <p style="color: rgba(245,240,232,0.8); font-size: 16px; line-height: 1.6; margin: 0;">
-                                La surveillance des concours FFE est maintenant active.<br><br>
-                                Vous recevrez une notification dès qu'un concours surveillé s'ouvrira aux engagements.
+                                Vous recevrez une notification dès qu'un concours s'ouvrira aux engagements.
                             </p>
                         </td>
                     </tr>
@@ -614,7 +619,7 @@ class ResendNotifier:
         Returns:
             True si envoi réussi, False sinon
         """
-        subject = "⚠️ Erreur EngageWatch"
+        subject = "🐴 FFE Monitor - Erreur"
 
         html_body = f"""
 <!DOCTYPE html>
@@ -629,14 +634,15 @@ class ResendNotifier:
                 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background: linear-gradient(135deg, #A63D40, #8B3A44); border-radius: 16px; padding: 40px;">
                     <tr>
                         <td align="center">
-                            <h1 style="color: #F5F0E8; margin: 0 0 20px 0; font-size: 24px;">
-                                ⚠️ Erreur EngageWatch
+                            <p style="font-size: 48px; margin: 0 0 16px 0;">🐴</p>
+                            <h1 style="color: #F5F0E8; margin: 0 0 8px 0; font-size: 24px; font-weight: 600;">
+                                FFE Monitor
                             </h1>
+                            <p style="color: rgba(245,240,232,0.6); font-size: 14px; text-transform: uppercase; letter-spacing: 2px; margin: 0 0 24px 0;">
+                                ⚠️ Erreur détectée
+                            </p>
                             <p style="color: rgba(245,240,232,0.9); font-size: 16px; line-height: 1.6; margin: 0; background: rgba(0,0,0,0.2); padding: 20px; border-radius: 8px;">
                                 {error}
-                            </p>
-                            <p style="color: rgba(245,240,232,0.5); font-size: 14px; margin-top: 20px;">
-                                Vérifiez l'application.
                             </p>
                         </td>
                     </tr>
@@ -657,7 +663,7 @@ class ResendNotifier:
         Returns:
             True si envoi réussi, False sinon
         """
-        subject = "🧪 Test EngageWatch"
+        subject = "🐴 FFE Monitor - Test"
 
         html_body = """
 <!DOCTYPE html>
@@ -672,12 +678,15 @@ class ResendNotifier:
                 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background: linear-gradient(135deg, #C9A227, #B8922A); border-radius: 16px; padding: 40px;">
                     <tr>
                         <td align="center">
-                            <h1 style="color: #1A1A1A; margin: 0 0 20px 0; font-size: 24px;">
-                                🧪 Test Notification
+                            <p style="font-size: 48px; margin: 0 0 16px 0;">🐴</p>
+                            <h1 style="color: #1A1A1A; margin: 0 0 8px 0; font-size: 24px; font-weight: 600;">
+                                FFE Monitor
                             </h1>
+                            <p style="color: rgba(26,26,26,0.6); font-size: 14px; text-transform: uppercase; letter-spacing: 2px; margin: 0 0 24px 0;">
+                                🧪 Test réussi
+                            </p>
                             <p style="color: rgba(26,26,26,0.8); font-size: 16px; line-height: 1.6; margin: 0;">
-                                Ceci est un email de test EngageWatch.<br><br>
-                                Si vous recevez cet email, les notifications par email fonctionnent correctement !
+                                Les notifications par email fonctionnent correctement !
                             </p>
                         </td>
                     </tr>
