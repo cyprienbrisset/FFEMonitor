@@ -11,9 +11,14 @@ from pydantic import BaseModel, Field
 class StatutConcours(str, Enum):
     """Statuts possibles d'un concours."""
 
-    FERME = "ferme"
-    ENGAGEMENT = "engagement"  # Bouton "Engager" détecté
-    DEMANDE = "demande"  # Bouton "Demande de participation" détecté
+    PREVISIONNEL = "previsionnel"  # Concours prévu mais pas encore ouvert
+    ENGAGEMENT = "engagement"  # Ouvert aux engagements
+    DEMANDE = "demande"  # Demande de participation (international)
+    CLOTURE = "cloture"  # Engagements clôturés
+    EN_COURS = "en_cours"  # Concours en cours
+    TERMINE = "termine"  # Concours terminé
+    ANNULE = "annule"  # Concours annulé
+    FERME = "ferme"  # État inconnu/par défaut
 
 
 class ConcoursCreate(BaseModel):

@@ -23,6 +23,7 @@ class ConcoursInfo:
     date_fin: str | None = None
     organisateur: str | None = None
     discipline: str | None = None
+    statut: str | None = None  # previsionnel, engagement, cloture, etc.
     is_open: bool = False  # "Ouvert aux engagements" détecté
 
 
@@ -131,8 +132,8 @@ class FFEScraper:
                     if parts:
                         info.nom = " - ".join(parts)
 
-                # Vérifier si ouvert aux engagements
-                info.is_open = self._check_is_open(html)
+                # Extraire le statut réel du concours
+                info.statut, info.is_open = self._extract_statut(html)
 
                 logger.debug(
                     f"Concours {numero} scrappé: nom={info.nom}, "
@@ -264,12 +265,35 @@ class FFEScraper:
 
         return None
 
-    def _check_is_open(self, html: str) -> bool:
-        """Vérifie si les engagements sont ouverts."""
-        for pattern in self.PATTERNS["ouvert"]:
+    def _extract_statut(self, html: str) -> tuple[Optional[str], bool]:
+        """
+        Extrait le statut réel du concours depuis la page.
+
+        Returns:
+            (statut, is_open) - statut et booléen si ouvert aux engagements
+        """
+        # Ordre de priorité pour la détection (du plus spécifique au moins spécifique)
+        status_patterns = [
+            # États "ouverts" - prioritaires
+            (r'[Oo]uvert(?:e)?(?:s)?\s+aux\s+engagements', 'engagement', True),
+            (r'[Dd]emande\s+de\s+participation', 'demande', True),
+            (r'[Ee]ngagements?\s+ouverts?', 'engagement', True),
+            # États fermés - patterns précis pour éviter faux positifs
+            (r'[Cc]oncours\s+termin[ée]', 'termine', False),
+            (r'[Cc]oncours\s+annul[ée]', 'annule', False),
+            (r'[Cc]oncours\s+en\s+cours', 'en_cours', False),
+            (r'[Ee]ngagements?\s+clôtur[ée]s?', 'cloture', False),
+            (r'[Ii]nscriptions?\s+clôtur[ée]e?s?', 'cloture', False),
+            # Prévisionnel - état par défaut si date dans le futur
+            (r'[Pp]r[ée]visionnel(?:le)?', 'previsionnel', False),
+        ]
+
+        for pattern, statut, is_open in status_patterns:
             if re.search(pattern, html, re.IGNORECASE):
-                return True
-        return False
+                return statut, is_open
+
+        # Par défaut: prévisionnel (concours pas encore ouvert)
+        return 'previsionnel', False
 
 
 # Instance globale

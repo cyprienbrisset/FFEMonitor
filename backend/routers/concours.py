@@ -59,10 +59,14 @@ async def _scrape_and_update_concours(numero: int) -> None:
             )
             logger.info(f"Infos scrappées pour concours {numero}: {info.nom}")
 
-        # Mettre à jour le statut si ouvert aux engagements
-        if info.is_open:
-            await db.update_statut(numero, StatutConcours.ENGAGEMENT, notifie=False)
-            logger.info(f"Concours {numero} détecté comme ouvert")
+        # Mettre à jour le statut avec la valeur scrappée
+        if info.statut:
+            try:
+                statut = StatutConcours(info.statut)
+                await db.update_statut(numero, statut, notifie=False)
+                logger.info(f"Concours {numero}: statut = {info.statut}")
+            except ValueError:
+                logger.warning(f"Statut inconnu pour {numero}: {info.statut}")
     except Exception as e:
         logger.error(f"Erreur scraping concours {numero}: {e}")
 
@@ -158,9 +162,13 @@ async def refresh_concours(numero: int) -> ConcoursResponse:
             date_fin=info.date_fin,
         )
 
-    # Mettre à jour le statut si ouvert
-    if info.is_open:
-        await db.update_statut(numero, StatutConcours.ENGAGEMENT, notifie=False)
+    # Mettre à jour le statut avec la valeur scrappée
+    if info.statut:
+        try:
+            statut = StatutConcours(info.statut)
+            await db.update_statut(numero, statut, notifie=False)
+        except ValueError:
+            pass
 
     # Récupérer le concours mis à jour
         concours = await db.get_concours_by_numero(numero)

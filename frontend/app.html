@@ -902,7 +902,16 @@
         }
 
         function formatStatut(statut) {
-            const labels = { 'ferme': 'Fermé', 'engagement': 'Engagement', 'demande': 'Demande' };
+            const labels = {
+                'previsionnel': 'Prévisionnel',
+                'engagement': 'Ouvert',
+                'demande': 'Demande',
+                'cloture': 'Clôturé',
+                'en_cours': 'En cours',
+                'termine': 'Terminé',
+                'annule': 'Annulé',
+                'ferme': 'Inconnu'
+            };
             return labels[statut] || statut;
         }
 
