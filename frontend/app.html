@@ -96,6 +96,15 @@
                     <span class="update-icon">↻</span>
                     <span id="lastUpdate">—</span>
                 </div>
+                <div class="test-notifications">
+                    <span class="test-label">Tester les notifications :</span>
+                    <button class="btn-test" id="testTelegram" title="Tester Telegram">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.161c-.18 1.897-.962 6.502-1.359 8.627-.168.9-.5 1.201-.82 1.23-.697.064-1.226-.461-1.901-.903-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.139-5.062 3.345-.479.329-.913.489-1.302.481-.428-.009-1.252-.242-1.865-.44-.751-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.831-2.529 6.998-3.015 3.333-1.386 4.025-1.627 4.477-1.635.099-.002.321.023.465.141.121.1.154.234.169.348-.001.052.014.21-.012.328z"/></svg>
+                    </button>
+                    <button class="btn-test" id="testEmail" title="Tester Email">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                    </button>
+                </div>
             </section>
 
             <!-- Add Concours Card -->
@@ -327,6 +336,8 @@
             document.getElementById('addForm').addEventListener('submit', handleAddConcours);
             document.getElementById('logoutButton').addEventListener('click', logout);
             document.getElementById('themeToggle').addEventListener('click', () => ThemeManager.toggle());
+            document.getElementById('testTelegram').addEventListener('click', () => testNotification('telegram'));
+            document.getElementById('testEmail').addEventListener('click', () => testNotification('email'));
 
             // Initialize chart period toggle buttons
             document.querySelectorAll('.period-btn').forEach(btn => {
@@ -377,6 +388,31 @@
         function logout() {
             localStorage.removeItem(TOKEN_KEY);
             window.location.href = '/login';
+        }
+
+        async function testNotification(type) {
+            const btn = document.getElementById(type === 'telegram' ? 'testTelegram' : 'testEmail');
+            btn.disabled = true;
+            btn.classList.add('loading');
+
+            try {
+                const response = await fetch(`/test-${type}`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    showMessage(data.message, 'success');
+                } else {
+                    showMessage(data.message, 'error');
+                }
+            } catch (error) {
+                showMessage(`Erreur: ${error.message}`, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.classList.remove('loading');
+            }
         }
 
         function getAuthHeaders() {

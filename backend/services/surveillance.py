@@ -147,12 +147,7 @@ class SurveillanceService:
 
     async def _check_all_concours(self) -> None:
         """Vérifie l'état de tous les concours non notifiés."""
-        # Vérifier d'abord si la session est valide
-        if not self.auth.is_connected:
-            logger.warning("Session FFE non connectée, tentative de reconnexion...")
-            if not await self.auth.reconnect_with_backoff():
-                logger.error("Impossible de se reconnecter à FFE")
-                raise RuntimeError("Échec de reconnexion FFE")
+        from backend.services.scraper import scraper
 
         # Récupérer les concours à surveiller
         concours_list = await self.db.get_concours_non_notifies()
@@ -168,21 +163,7 @@ class SurveillanceService:
                 break
 
             try:
-                await self._check_concours(concours)
-            except RuntimeError as e:
-                # Session expirée ou erreur de navigation
-                if "login" in str(e).lower() or "reconnecter" in str(e).lower():
-                    logger.warning("Session expirée détectée, reconnexion avec backoff...")
-                    if await self.auth.reconnect_with_backoff():
-                        # Réessayer ce concours après reconnexion
-                        try:
-                            await self._check_concours(concours)
-                        except Exception as retry_e:
-                            logger.error(f"Erreur après reconnexion pour {concours['numero']}: {retry_e}")
-                    else:
-                        raise RuntimeError("Échec de reconnexion FFE après session expirée")
-                else:
-                    logger.error(f"Erreur vérification concours {concours['numero']}: {e}")
+                await self._check_concours_scraper(concours, scraper)
             except Exception as e:
                 logger.error(f"Erreur vérification concours {concours['numero']}: {e}")
                 continue
@@ -287,6 +268,85 @@ class SurveillanceService:
 
         else:
             logger.debug(f"Concours {numero}: fermé")
+
+    async def _check_concours_scraper(self, concours: dict, scraper) -> None:
+        """
+        Vérifie l'état d'un concours via le scraper HTTP (sans Playwright).
+
+        Args:
+            concours: Données du concours depuis la base
+            scraper: Instance du scraper FFE
+        """
+        numero = concours["numero"]
+        statut_before = concours.get("statut", "previsionnel")
+        logger.debug(f"Vérification concours {numero} (scraper)...")
+
+        start_time = time.time()
+
+        # Scraper les infos du concours
+        info = await scraper.fetch_concours_info(numero)
+
+        # Calculer le temps de réponse
+        response_time_ms = int((time.time() - start_time) * 1000)
+
+        # Déterminer le nouveau statut
+        statut_after = info.statut or "previsionnel"
+
+        # Enregistrer dans l'historique
+        await self.db.record_check(
+            concours_numero=numero,
+            statut_before=statut_before,
+            statut_after=statut_after,
+            response_time_ms=response_time_ms,
+            success=True,
+        )
+
+        # Mettre à jour les infos du concours
+        if info.nom or info.lieu or info.date_debut:
+            await self.db.update_concours_info(
+                numero=numero,
+                nom=info.nom,
+                lieu=info.lieu,
+                date_debut=info.date_debut,
+                date_fin=info.date_fin,
+            )
+
+        # Mettre à jour le timestamp
+        await self.db.update_last_check(numero)
+
+        # Si le concours vient d'ouvrir (statut change vers engagement/demande)
+        if info.is_open and statut_before not in ("engagement", "demande"):
+            statut = StatutConcours.ENGAGEMENT if info.statut == "engagement" else StatutConcours.DEMANDE
+            logger.info(f"Concours {numero} OUVERT ({statut.value})")
+
+            # Envoyer la notification
+            notification_sent_at = None
+            try:
+                notif_sent = await self.notifier.send_notification(numero, statut)
+                if notif_sent:
+                    notification_sent_at = datetime.now().isoformat()
+            except Exception as e:
+                notif_sent = False
+                logger.error(f"Échec notification pour concours {numero}: {e}")
+
+            # Enregistrer l'événement d'ouverture
+            await self.db.record_opening(
+                concours_numero=numero,
+                statut=statut.value,
+                notification_sent_at=notification_sent_at,
+            )
+
+            # Mettre à jour le statut en base
+            await self.db.update_statut(numero, statut, notifie=notif_sent)
+        elif info.statut and info.statut != statut_before:
+            # Mettre à jour le statut même si pas d'ouverture
+            try:
+                statut = StatutConcours(info.statut)
+                await self.db.update_statut(numero, statut, notifie=False)
+            except ValueError:
+                pass
+        else:
+            logger.debug(f"Concours {numero}: {info.statut}")
 
     async def _detect_opening(self, page) -> Optional[StatutConcours]:
         """

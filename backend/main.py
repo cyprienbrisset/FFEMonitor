@@ -54,41 +54,45 @@ async def lifespan(app: FastAPI):
 
     # Initialisation des services
     try:
-        # Authentification FFE
-        authenticator = FFEAuthenticator(
-            username=settings.ffe_username,
-            password=settings.ffe_password,
-            cookies_path=settings.cookies_full_path,
-        )
-        app_state["authenticator"] = authenticator
+        # Notifier multi-canal (Telegram + Email si configuré)
+        notifier = MultiNotifier()
+        app_state["notifier"] = notifier
 
-        # Connexion à FFE
-        connected = await authenticator.login()
-        app_state["ffe_connected"] = connected
-
-        if connected:
-            logger.info("Connexion FFE établie")
-
-            # Notifier multi-canal (Telegram + Email si configuré)
-            notifier = MultiNotifier()
-            app_state["notifier"] = notifier
-
-            # Démarrage de la surveillance
-            surveillance = SurveillanceService(
-                authenticator=authenticator,
-                database=db,
-                notifier=notifier,
-                check_interval=settings.check_interval,
+        # Authentification FFE (optionnelle - le scraper fonctionne sans)
+        authenticator = None
+        try:
+            authenticator = FFEAuthenticator(
+                username=settings.ffe_username,
+                password=settings.ffe_password,
+                cookies_path=settings.cookies_full_path,
             )
+            app_state["authenticator"] = authenticator
 
-            # Lancer la surveillance en tâche de fond
-            task = asyncio.create_task(surveillance.start())
-            app_state["surveillance_task"] = task
-            app_state["surveillance_active"] = True
+            connected = await authenticator.login()
+            app_state["ffe_connected"] = connected
 
-            logger.info("Surveillance démarrée")
-        else:
-            logger.error("Échec de connexion FFE - Surveillance non démarrée")
+            if connected:
+                logger.info("Connexion FFE établie")
+            else:
+                logger.warning("Connexion FFE échouée - Mode scraper uniquement")
+        except Exception as e:
+            logger.warning(f"FFE non configuré ou erreur: {e} - Mode scraper uniquement")
+            app_state["ffe_connected"] = False
+
+        # Démarrage de la surveillance (fonctionne avec ou sans FFE)
+        surveillance = SurveillanceService(
+            authenticator=authenticator,
+            database=db,
+            notifier=notifier,
+            check_interval=settings.check_interval,
+        )
+
+        # Lancer la surveillance en tâche de fond
+        task = asyncio.create_task(surveillance.start())
+        app_state["surveillance_task"] = task
+        app_state["surveillance_active"] = True
+
+        logger.info("Surveillance démarrée (mode scraper)")
 
     except Exception as e:
         logger.error(f"Erreur lors de l'initialisation: {e}")

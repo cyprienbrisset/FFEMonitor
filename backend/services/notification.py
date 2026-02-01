@@ -219,6 +219,40 @@ Vous recevrez une notification dès qu'un concours surveillé s'ouvrira aux enga
         except Exception:
             return False
 
+    async def send_test(self) -> bool:
+        """
+        Envoie un message de test.
+
+        Returns:
+            True si envoi réussi, False sinon
+        """
+        message = """
+🧪 <b>Test Notification</b>
+
+Ceci est un message de test EngageWatch.
+
+Si vous recevez ce message, les notifications Telegram fonctionnent correctement !
+"""
+
+        try:
+            client = await self._get_client()
+            url = self.TELEGRAM_API_URL.format(token=self.bot_token)
+
+            response = await client.post(
+                url,
+                json={
+                    "chat_id": self.chat_id,
+                    "text": message.strip(),
+                    "parse_mode": "HTML",
+                },
+            )
+
+            return response.status_code == 200
+
+        except Exception as e:
+            logger.error(f"Erreur envoi test Telegram: {e}")
+            return False
+
     async def close(self) -> None:
         """Ferme le client HTTP."""
         if self._client:
@@ -510,6 +544,47 @@ class ResendNotifier:
                             </p>
                             <p style="color: rgba(245,240,232,0.5); font-size: 14px; margin-top: 20px;">
                                 Vérifiez l'application.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+"""
+
+        return await self._send_email(subject, html_body)
+
+    async def send_test(self) -> bool:
+        """
+        Envoie un email de test.
+
+        Returns:
+            True si envoi réussi, False sinon
+        """
+        subject = "🧪 Test EngageWatch"
+
+        html_body = """
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #1A1A1A;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+        <tr>
+            <td>
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background: linear-gradient(135deg, #C9A227, #B8922A); border-radius: 16px; padding: 40px;">
+                    <tr>
+                        <td align="center">
+                            <h1 style="color: #1A1A1A; margin: 0 0 20px 0; font-size: 24px;">
+                                🧪 Test Notification
+                            </h1>
+                            <p style="color: rgba(26,26,26,0.8); font-size: 16px; line-height: 1.6; margin: 0;">
+                                Ceci est un email de test EngageWatch.<br><br>
+                                Si vous recevez cet email, les notifications par email fonctionnent correctement !
                             </p>
                         </td>
                     </tr>
