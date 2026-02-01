@@ -272,27 +272,59 @@ class FFEScraper:
         Returns:
             (statut, is_open) - statut et booléen si ouvert aux engagements
         """
+        from datetime import datetime, date
+
         # Ordre de priorité pour la détection (du plus spécifique au moins spécifique)
         status_patterns = [
             # États "ouverts" - prioritaires
             (r'[Oo]uvert(?:e)?(?:s)?\s+aux\s+engagements', 'engagement', True),
+            (r'[Oo]uvert(?:e)?(?:s)?\s+aux\s+demandes', 'demande', True),
             (r'[Dd]emande\s+de\s+participation', 'demande', True),
             (r'[Ee]ngagements?\s+ouverts?', 'engagement', True),
-            # États fermés - patterns précis pour éviter faux positifs
+            # États fermés - patterns précis
             (r'[Cc]oncours\s+termin[ée]', 'termine', False),
             (r'[Cc]oncours\s+annul[ée]', 'annule', False),
+            (r'[Aa]nnul[ée]', 'annule', False),  # Pattern plus large pour "Annulé" seul
             (r'[Cc]oncours\s+en\s+cours', 'en_cours', False),
             (r'[Ee]ngagements?\s+clôtur[ée]s?', 'cloture', False),
             (r'[Ii]nscriptions?\s+clôtur[ée]e?s?', 'cloture', False),
-            # Prévisionnel - état par défaut si date dans le futur
-            (r'[Pp]r[ée]visionnel(?:le)?', 'previsionnel', False),
         ]
 
         for pattern, statut, is_open in status_patterns:
             if re.search(pattern, html, re.IGNORECASE):
                 return statut, is_open
 
-        # Par défaut: prévisionnel (concours pas encore ouvert)
+        # Vérifier la date de clôture pour déterminer si engagements fermés
+        cloture_match = re.search(r'[Cc]lôture\s+le\s+(\d{2}/\d{2}/\d{4})', html)
+        if cloture_match:
+            try:
+                cloture_date = datetime.strptime(cloture_match.group(1), '%d/%m/%Y').date()
+                today = date.today()
+                if cloture_date < today:
+                    # Clôture passée - vérifier si le concours a commencé
+                    # Extraire les dates du concours
+                    dates = re.findall(r'(\d{2}/\d{2}/\d{4})', html)
+                    if len(dates) >= 2:
+                        try:
+                            date_debut = datetime.strptime(dates[0], '%d/%m/%Y').date()
+                            date_fin = datetime.strptime(dates[1], '%d/%m/%Y').date()
+                            if today > date_fin:
+                                return 'termine', False
+                            elif today >= date_debut:
+                                return 'en_cours', False
+                            else:
+                                return 'cloture', False
+                        except:
+                            pass
+                    return 'cloture', False
+            except:
+                pass
+
+        # Chercher "Prévisionnelle" explicitement
+        if re.search(r'[Pp]r[ée]visionnel(?:le)?', html, re.IGNORECASE):
+            return 'previsionnel', False
+
+        # Par défaut: prévisionnel
         return 'previsionnel', False
 
 
