@@ -247,6 +247,10 @@ class SurveillanceService:
                     self.notifier.send_notification,
                     numero,
                     statut,
+                    concours.get("nom"),
+                    concours.get("lieu"),
+                    concours.get("date_debut"),
+                    concours.get("date_fin"),
                     max_attempts=3,
                     base_delay=1.0,
                 )
@@ -322,7 +326,14 @@ class SurveillanceService:
             # Envoyer la notification
             notification_sent_at = None
             try:
-                notif_sent = await self.notifier.send_notification(numero, statut)
+                notif_sent = await self.notifier.send_notification(
+                    numero=numero,
+                    statut=statut,
+                    nom=info.nom,
+                    lieu=info.lieu,
+                    date_debut=info.date_debut,
+                    date_fin=info.date_fin,
+                )
                 if notif_sent:
                     notification_sent_at = datetime.now().isoformat()
             except Exception as e:
