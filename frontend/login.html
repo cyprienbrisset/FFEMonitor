@@ -6,11 +6,11 @@
     <title>FFE Monitor — Connexion</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/style.css">
     <link rel="icon" type="image/svg+xml" href="/static/logo.svg">
     <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#722F37">
+    <meta name="theme-color" content="#FAF7F2">
     <!-- Supabase SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -216,128 +216,6 @@
             </div>
         </div>
     </div>
-
-    <style>
-        /* Auth Tabs */
-        .auth-tabs {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 24px;
-            padding: 4px;
-            background: rgba(245, 240, 232, 0.05);
-            border-radius: 8px;
-        }
-
-        .auth-tab {
-            flex: 1;
-            padding: 12px 16px;
-            background: transparent;
-            border: none;
-            border-radius: 6px;
-            color: rgba(245, 240, 232, 0.6);
-            font-family: inherit;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .auth-tab:hover {
-            color: #F5F0E8;
-        }
-
-        .auth-tab.active {
-            background: linear-gradient(135deg, #722F37, #5A252C);
-            color: #F5F0E8;
-        }
-
-        /* Auth Forms */
-        .auth-form {
-            display: none;
-        }
-
-        .auth-form.active {
-            display: block;
-        }
-
-        /* Forgot Password Link */
-        .forgot-password,
-        .back-to-login {
-            display: block;
-            text-align: center;
-            margin-top: 16px;
-            color: rgba(245, 240, 232, 0.6);
-            font-size: 14px;
-            text-decoration: none;
-            transition: color 0.3s ease;
-        }
-
-        .forgot-password:hover,
-        .back-to-login:hover {
-            color: #C9A227;
-        }
-
-        /* Signup Info */
-        .signup-info {
-            margin-top: 16px;
-            text-align: center;
-            font-size: 12px;
-            color: rgba(245, 240, 232, 0.5);
-            line-height: 1.5;
-        }
-
-        .signup-info strong {
-            color: #C9A227;
-        }
-
-        /* Success Message */
-        .login-success {
-            color: #4A7C59;
-            font-size: 14px;
-            text-align: center;
-            margin-bottom: 16px;
-            padding: 12px;
-            background: rgba(74, 124, 89, 0.1);
-            border-radius: 8px;
-            display: none;
-        }
-
-        .login-success.visible {
-            display: block;
-        }
-
-        /* Plan Badges */
-        .plan-badges {
-            display: flex;
-            justify-content: center;
-            gap: 8px;
-            margin-top: 12px;
-        }
-
-        .plan-badge {
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 11px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .plan-badge.free {
-            background: rgba(245, 240, 232, 0.1);
-            color: rgba(245, 240, 232, 0.6);
-        }
-
-        .plan-badge.premium {
-            background: rgba(201, 162, 39, 0.2);
-            color: #C9A227;
-        }
-
-        .plan-badge.pro {
-            background: rgba(114, 47, 55, 0.3);
-            color: #E5C76B;
-        }
-    </style>
 
     <script>
         // Configuration Supabase (injectée par le serveur)
