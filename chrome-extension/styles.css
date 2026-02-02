@@ -1,0 +1,246 @@
+/**
+ * FFE Monitor Chrome Extension - Injected Styles
+ */
+
+/* ============================================================================
+   Notification Toast
+   ============================================================================ */
+
+#ffemonitor-notifications {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 999999;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.ffemonitor-notification {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    background: #1A1A1A;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 14px;
+    color: #F5F0E8;
+    transform: translateX(120%);
+    transition: transform 0.3s ease;
+    border-left: 4px solid #C9A227;
+}
+
+.ffemonitor-notification.show {
+    transform: translateX(0);
+}
+
+.ffemonitor-notification-icon {
+    font-size: 16px;
+    font-weight: bold;
+}
+
+.ffemonitor-success {
+    border-left-color: #4A7C59;
+}
+
+.ffemonitor-success .ffemonitor-notification-icon {
+    color: #4A7C59;
+}
+
+.ffemonitor-error {
+    border-left-color: #A63D40;
+}
+
+.ffemonitor-error .ffemonitor-notification-icon {
+    color: #A63D40;
+}
+
+.ffemonitor-info {
+    border-left-color: #3D6B99;
+}
+
+.ffemonitor-info .ffemonitor-notification-icon {
+    color: #3D6B99;
+}
+
+/* ============================================================================
+   Surveillance Button
+   ============================================================================ */
+
+.ffemonitor-btn-container {
+    display: inline-flex;
+    margin: 4px;
+}
+
+.ffemonitor-btn-container.ffemonitor-inline {
+    margin-left: 8px;
+}
+
+.ffemonitor-btn-container.ffemonitor-detail {
+    margin: 16px 0;
+}
+
+.ffemonitor-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    background: linear-gradient(135deg, #722F37, #5A252C);
+    border: none;
+    border-radius: 6px;
+    color: #F5F0E8;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.ffemonitor-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(114, 47, 55, 0.4);
+}
+
+.ffemonitor-btn:active {
+    transform: translateY(0);
+}
+
+.ffemonitor-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.8;
+}
+
+.ffemonitor-btn:disabled:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+.ffemonitor-btn-added {
+    background: linear-gradient(135deg, #4A7C59, #3D6B4D);
+}
+
+.ffemonitor-btn-added:hover {
+    box-shadow: 0 4px 12px rgba(74, 124, 89, 0.4);
+}
+
+/* Spinner */
+.ffemonitor-spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(245, 240, 232, 0.3);
+    border-top-color: #F5F0E8;
+    border-radius: 50%;
+    animation: ffemonitor-spin 0.8s linear infinite;
+}
+
+@keyframes ffemonitor-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ============================================================================
+   Floating Action Button
+   ============================================================================ */
+
+.ffemonitor-fab {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 999998;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 12px;
+}
+
+.ffemonitor-fab-btn {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #722F37, #5A252C);
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(114, 47, 55, 0.4);
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ffemonitor-fab-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 28px rgba(114, 47, 55, 0.5);
+}
+
+.ffemonitor-fab.open .ffemonitor-fab-btn {
+    background: linear-gradient(135deg, #C9A227, #A68B2A);
+}
+
+.ffemonitor-fab-menu {
+    display: flex;
+    gap: 8px;
+    padding: 12px;
+    background: #1A1A1A;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    opacity: 0;
+    transform: translateY(10px) scale(0.95);
+    pointer-events: none;
+    transition: all 0.2s ease;
+}
+
+.ffemonitor-fab.open .ffemonitor-fab-menu {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: all;
+}
+
+.ffemonitor-fab-input {
+    width: 120px;
+    padding: 10px 12px;
+    background: #2D2D2D;
+    border: 1px solid rgba(245, 240, 232, 0.1);
+    border-radius: 6px;
+    color: #F5F0E8;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.ffemonitor-fab-input:focus {
+    border-color: #C9A227;
+}
+
+.ffemonitor-fab-input::placeholder {
+    color: rgba(245, 240, 232, 0.3);
+}
+
+.ffemonitor-fab-add {
+    padding: 10px 16px;
+    background: linear-gradient(135deg, #C9A227, #A68B2A);
+    border: none;
+    border-radius: 6px;
+    color: #1A1A1A;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.ffemonitor-fab-add:hover {
+    transform: translateY(-1px);
+}
+
+.ffemonitor-fab-add:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}

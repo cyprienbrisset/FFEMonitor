@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FFE Monitor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            width: 320px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1A1A1A;
+            color: #F5F0E8;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #722F37, #5A252C);
+            padding: 16px;
+            text-align: center;
+        }
+
+        .logo {
+            font-size: 32px;
+            margin-bottom: 4px;
+        }
+
+        .header h1 {
+            font-size: 16px;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .header p {
+            font-size: 11px;
+            opacity: 0.8;
+            margin-top: 2px;
+        }
+
+        .content {
+            padding: 16px;
+        }
+
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px;
+            background: #2D2D2D;
+            border-radius: 8px;
+            margin-bottom: 16px;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #A63D40;
+        }
+
+        .status-dot.connected {
+            background: #4A7C59;
+            box-shadow: 0 0 8px rgba(74, 124, 89, 0.5);
+        }
+
+        .status-text {
+            font-size: 13px;
+        }
+
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        label {
+            display: block;
+            font-size: 12px;
+            color: rgba(245, 240, 232, 0.6);
+            margin-bottom: 4px;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px 12px;
+            background: #2D2D2D;
+            border: 1px solid rgba(245, 240, 232, 0.1);
+            border-radius: 6px;
+            color: #F5F0E8;
+            font-size: 13px;
+            transition: border-color 0.2s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #C9A227;
+        }
+
+        input::placeholder {
+            color: rgba(245, 240, 232, 0.3);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #C9A227, #A68B2A);
+            border: none;
+            border-radius: 8px;
+            color: #1A1A1A;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(201, 162, 39, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: #2D2D2D;
+            color: #F5F0E8;
+            margin-top: 8px;
+        }
+
+        .btn-secondary:hover {
+            background: #3D3D3D;
+            box-shadow: none;
+        }
+
+        .message {
+            padding: 10px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            margin-top: 12px;
+            display: none;
+        }
+
+        .message.success {
+            display: block;
+            background: rgba(74, 124, 89, 0.2);
+            border: 1px solid rgba(74, 124, 89, 0.3);
+            color: #5D9B70;
+        }
+
+        .message.error {
+            display: block;
+            background: rgba(166, 61, 64, 0.2);
+            border: 1px solid rgba(166, 61, 64, 0.3);
+            color: #D35D60;
+        }
+
+        .footer {
+            padding: 12px 16px;
+            border-top: 1px solid rgba(245, 240, 232, 0.1);
+            text-align: center;
+        }
+
+        .footer a {
+            color: rgba(245, 240, 232, 0.4);
+            font-size: 11px;
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            color: #C9A227;
+        }
+
+        .stats {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .stat {
+            flex: 1;
+            background: #2D2D2D;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: #C9A227;
+        }
+
+        .stat-label {
+            font-size: 10px;
+            color: rgba(245, 240, 232, 0.5);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">🐴</div>
+        <h1>FFE Monitor</h1>
+        <p>Extension de surveillance</p>
+    </div>
+
+    <div class="content">
+        <div class="status">
+            <div class="status-dot" id="statusDot"></div>
+            <span class="status-text" id="statusText">Non connecté</span>
+        </div>
+
+        <div class="stats" id="statsSection" style="display: none;">
+            <div class="stat">
+                <div class="stat-value" id="concoursCount">0</div>
+                <div class="stat-label">Concours</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="surveillanceStatus">—</div>
+                <div class="stat-label">Surveillance</div>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>URL de FFE Monitor</label>
+            <input type="text" id="apiUrl" placeholder="http://localhost:8000">
+        </div>
+
+        <div class="form-group">
+            <label>Nom d'utilisateur</label>
+            <input type="text" id="username" placeholder="admin">
+        </div>
+
+        <div class="form-group">
+            <label>Mot de passe</label>
+            <input type="password" id="password" placeholder="••••••••">
+        </div>
+
+        <button class="btn" id="saveBtn">Enregistrer & Connecter</button>
+        <button class="btn btn-secondary" id="testBtn" style="display: none;">Tester la connexion</button>
+
+        <div class="message" id="message"></div>
+    </div>
+
+    <div class="footer">
+        <a href="https://github.com/cyprienbrisset/FFEMonitor" target="_blank">FFE Monitor v1.0</a>
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+</html>
