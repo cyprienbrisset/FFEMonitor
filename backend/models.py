@@ -63,7 +63,6 @@ class HealthResponse(BaseModel):
     """Schéma de réponse pour le health check."""
 
     status: str = "ok"
-    ffe_connected: bool = False
     surveillance_active: bool = False
     concours_count: int = 0
 
@@ -71,7 +70,6 @@ class HealthResponse(BaseModel):
 class StatusResponse(BaseModel):
     """Schéma de réponse pour le statut global."""
 
-    ffe_connected: bool
     surveillance_active: bool
     last_check: datetime | None
     concours_surveilles: int

@@ -20,7 +20,7 @@ def check_env_config():
     env_example = root_dir / ".env.example"
 
     # Variables obligatoires
-    required_vars = ["FFE_USERNAME", "FFE_PASSWORD", "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID"]
+    required_vars = ["SUPABASE_URL", "SUPABASE_ANON_KEY", "SUPABASE_SERVICE_KEY", "ONESIGNAL_APP_ID", "ONESIGNAL_API_KEY"]
 
     # Si le fichier .env existe, c'est bon
     if env_file.exists():
@@ -54,7 +54,7 @@ def check_dependencies():
         import uvicorn
         import playwright
         import aiosqlite
-        import telegram
+        import httpx
     except ImportError as e:
         print("=" * 50)
         print("ERREUR: Dépendances manquantes")

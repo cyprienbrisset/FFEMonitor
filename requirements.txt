@@ -14,11 +14,7 @@ aiosqlite>=0.19.0
 # Supabase (auth + database)
 supabase>=2.3.0
 
-# Notifications
-python-telegram-bot>=20.7
-# Email via Resend (uses httpx)
-# WhatsApp via Whapi.cloud (uses httpx)
-# Push via OneSignal (uses httpx)
+# Notifications (OneSignal via httpx)
 
 # Configuration
 python-dotenv>=1.0.0

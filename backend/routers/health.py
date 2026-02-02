@@ -23,16 +23,15 @@ async def health_check() -> HealthResponse:
 
     return HealthResponse(
         status="ok",
-        ffe_connected=app_state.get("ffe_connected", False),
         surveillance_active=app_state.get("surveillance_active", False),
         concours_count=app_state.get("concours_count", 0),
     )
 
 
-@router.post("/test-email", response_model=MessageResponse, dependencies=[Depends(require_auth)])
-async def test_email_notification() -> MessageResponse:
+@router.post("/test-push", response_model=MessageResponse, dependencies=[Depends(require_auth)])
+async def test_push_notification() -> MessageResponse:
     """
-    Envoie un email de test via Resend.
+    Envoie une notification push de test via OneSignal.
 
     Returns:
         MessageResponse avec le résultat
@@ -44,73 +43,21 @@ async def test_email_notification() -> MessageResponse:
     if not notifier:
         return MessageResponse(message="Notifier non initialisé", success=False)
 
-    if not settings.email_configured:
+    if not settings.onesignal_configured:
         return MessageResponse(
-            message="Email non configuré (RESEND_API_KEY, EMAIL_TO manquants)",
+            message="OneSignal non configuré (ONESIGNAL_APP_ID, ONESIGNAL_API_KEY manquants)",
             success=False
         )
 
-    try:
-        # Envoyer un email de test
-        success = await notifier.email.send_test()
-        if success:
-            return MessageResponse(message=f"Email de test envoyé à {settings.email_to}", success=True)
-        else:
-            return MessageResponse(message="Échec de l'envoi de l'email", success=False)
-    except Exception as e:
-        return MessageResponse(message=f"Erreur: {str(e)}", success=False)
-
-
-@router.post("/test-telegram", response_model=MessageResponse, dependencies=[Depends(require_auth)])
-async def test_telegram_notification() -> MessageResponse:
-    """
-    Envoie un message Telegram de test.
-
-    Returns:
-        MessageResponse avec le résultat
-    """
-    from backend.main import app_state
-
-    notifier = app_state.get("notifier")
-    if not notifier:
-        return MessageResponse(message="Notifier non initialisé", success=False)
+    if not notifier.onesignal:
+        return MessageResponse(message="OneSignal notifier non disponible", success=False)
 
     try:
-        success = await notifier.telegram.send_test()
+        # Envoyer une notification de test à tous les abonnés
+        success = await notifier.onesignal.send_startup_notification()
         if success:
-            return MessageResponse(message="Message Telegram de test envoyé", success=True)
+            return MessageResponse(message="Notification push de test envoyée", success=True)
         else:
-            return MessageResponse(message="Échec de l'envoi Telegram", success=False)
-    except Exception as e:
-        return MessageResponse(message=f"Erreur: {str(e)}", success=False)
-
-
-@router.post("/test-whatsapp", response_model=MessageResponse, dependencies=[Depends(require_auth)])
-async def test_whatsapp_notification() -> MessageResponse:
-    """
-    Envoie un message WhatsApp de test via Whapi.cloud.
-
-    Returns:
-        MessageResponse avec le résultat
-    """
-    from backend.main import app_state
-    from backend.config import settings
-
-    notifier = app_state.get("notifier")
-    if not notifier:
-        return MessageResponse(message="Notifier non initialisé", success=False)
-
-    if not settings.whatsapp_configured:
-        return MessageResponse(
-            message="WhatsApp non configuré (WHAPI_API_KEY, WHATSAPP_TO manquants)",
-            success=False
-        )
-
-    try:
-        success = await notifier.whatsapp.send_test()
-        if success:
-            return MessageResponse(message=f"Message WhatsApp de test envoyé à {settings.whatsapp_to}", success=True)
-        else:
-            return MessageResponse(message="Échec de l'envoi WhatsApp", success=False)
+            return MessageResponse(message="Échec de l'envoi (aucun abonné?)", success=False)
     except Exception as e:
         return MessageResponse(message=f"Erreur: {str(e)}", success=False)
