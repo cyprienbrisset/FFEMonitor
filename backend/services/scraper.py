@@ -269,107 +269,54 @@ class FFEScraper:
         """
         Extrait le statut réel du concours depuis la page.
 
-        IMPORTANT: Très conservateur - on ne détecte "ouvert" que si on est SÛR
-        qu'il y a un bouton d'action cliquable.
+        Le statut est dans le bloc HTML header:
+        <span class="right d-none d-sm-block">STATUS</span>
+
+        Valeurs possibles:
+        - "Calendrier" = prévisionnel (pas encore ouvert)
+        - "Ouvert aux engagements" = engagement ouvert (amateur)
+        - "Ouvert aux demandes" = demande ouverte (international)
+        - Autre = cloturé/fermé
 
         Returns:
             (statut, is_open) - statut et booléen si ouvert aux engagements
         """
-        from datetime import datetime, date
+        # Pattern pour extraire le statut depuis le header officiel FFE
+        # Format: <span class="right d-none d-sm-block">STATUS</span>
+        header_pattern = r'<span[^>]*class="[^"]*right[^"]*d-none[^"]*d-sm-block[^"]*"[^>]*>\s*([^<]+?)\s*</span>'
 
-        # D'abord, vérifier si c'est explicitement en prévisionnel
-        # Ces patterns indiquent que ce n'est PAS encore ouvert
-        previsionnel_patterns = [
-            r'[Pp]r[ée]visionnel',
-            r'[Oo]uverture\s+prochaine',
-            r'[Ss]era\s+ouvert',
-            r'[Ss]eront\s+ouvert',
-            r'[Pp]as\s+encore\s+ouvert',
-            r'[Bb]ient[ôo]t\s+disponible',
-        ]
+        match = re.search(header_pattern, html, re.IGNORECASE | re.DOTALL)
 
-        for pattern in previsionnel_patterns:
-            if re.search(pattern, html, re.IGNORECASE):
-                logger.debug(f"Détecté PRÉVISIONNEL via pattern: {pattern}")
+        if match:
+            status_text = match.group(1).strip()
+            logger.info(f"Statut FFE détecté dans header: '{status_text}'")
+
+            # Calendrier = prévisionnel (pas encore ouvert)
+            if status_text.lower() == 'calendrier':
                 return 'previsionnel', False
 
-        # Patterns TRÈS STRICTS pour détecter l'ouverture
-        # On cherche des boutons/liens avec href contenant des actions spécifiques
-
-        # Pour les engagements amateurs: bouton avec href vers /engagement/ ou /engager
-        engagement_button_patterns = [
-            # Lien direct vers la page d'engagement avec le texte "Engager"
-            r'<a[^>]*href="[^"]*(?:/engagement/|/engager\?|action=engager)[^"]*"[^>]*>\s*(?:Engager|S\'engager)\s*</a>',
-            # Bouton submit d'engagement
-            r'<button[^>]*type="submit"[^>]*>\s*Engager\s*</button>',
-            r'<input[^>]*type="submit"[^>]*value="[^"]*[Ee]ngager[^"]*"[^>]*>',
-        ]
-
-        for pattern in engagement_button_patterns:
-            match = re.search(pattern, html, re.IGNORECASE | re.DOTALL)
-            if match:
-                logger.info(f"Détecté ENGAGEMENT OUVERT via bouton: {match.group(0)[:80]}")
+            # Ouvert aux engagements = engagement ouvert (amateur)
+            if 'ouvert aux engagements' in status_text.lower():
+                logger.info(f"OUVERT AUX ENGAGEMENTS détecté!")
                 return 'engagement', True
 
-        # Pour les demandes de participation (concours internationaux)
-        demande_button_patterns = [
-            # Lien direct vers demande de participation
-            r'<a[^>]*href="[^"]*(?:/demande|action=demande)[^"]*"[^>]*>\s*(?:Demande de participation|Faire une demande)\s*</a>',
-            # Bouton de demande
-            r'<button[^>]*>\s*Demande de participation\s*</button>',
-        ]
-
-        for pattern in demande_button_patterns:
-            match = re.search(pattern, html, re.IGNORECASE | re.DOTALL)
-            if match:
-                logger.info(f"Détecté DEMANDE OUVERT via bouton: {match.group(0)[:80]}")
+            # Ouvert aux demandes = demande ouverte (international)
+            if 'ouvert aux demandes' in status_text.lower():
+                logger.info(f"OUVERT AUX DEMANDES détecté!")
                 return 'demande', True
 
-        # États fermés - patterns précis
-        status_patterns = [
-            (r'[Cc]oncours\s+termin[ée]', 'termine', False),
-            (r'[Cc]oncours\s+annul[ée]', 'annule', False),
-            (r'[Cc]oncours\s+en\s+cours', 'en_cours', False),
-            (r'[Ee]ngagements?\s+clôtur[ée]s?', 'cloture', False),
-            (r'[Ii]nscriptions?\s+clôtur[ée]e?s?', 'cloture', False),
-        ]
+            # Tout autre texte = cloturé/fermé
+            logger.debug(f"Statut non-ouvert: '{status_text}'")
+            return 'cloture', False
 
-        for pattern, statut, is_open in status_patterns:
-            if re.search(pattern, html, re.IGNORECASE):
-                logger.debug(f"Détecté {statut} via pattern: {pattern}")
-                return statut, is_open
+        # Fallback: si on ne trouve pas le header, chercher d'autres indices
+        logger.warning("Header de statut FFE non trouvé, utilisation du fallback")
 
-        # Vérifier la date de clôture pour déterminer si engagements fermés
-        cloture_match = re.search(r'[Cc]lôture\s+le\s+(\d{2}/\d{2}/\d{4})', html)
-        if cloture_match:
-            try:
-                cloture_date = datetime.strptime(cloture_match.group(1), '%d/%m/%Y').date()
-                today = date.today()
-                if cloture_date < today:
-                    # Clôture passée - vérifier si le concours a commencé
-                    # Extraire les dates du concours
-                    dates = re.findall(r'(\d{2}/\d{2}/\d{4})', html)
-                    if len(dates) >= 2:
-                        try:
-                            date_debut = datetime.strptime(dates[0], '%d/%m/%Y').date()
-                            date_fin = datetime.strptime(dates[1], '%d/%m/%Y').date()
-                            if today > date_fin:
-                                return 'termine', False
-                            elif today >= date_debut:
-                                return 'en_cours', False
-                            else:
-                                return 'cloture', False
-                        except:
-                            pass
-                    return 'cloture', False
-            except:
-                pass
-
-        # Chercher "Prévisionnelle" explicitement
-        if re.search(r'[Pp]r[ée]visionnel(?:le)?', html, re.IGNORECASE):
+        # Vérifier si explicitement en prévisionnel
+        if re.search(r'[Pp]r[ée]visionnel', html, re.IGNORECASE):
             return 'previsionnel', False
 
-        # Par défaut: prévisionnel
+        # Par défaut: prévisionnel (conservateur)
         return 'previsionnel', False
 
 
