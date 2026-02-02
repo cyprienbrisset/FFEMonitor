@@ -313,6 +313,10 @@
             if (useSupabase && supabaseClient) {
                 const { data: { session } } = await supabaseClient.auth.getSession();
                 if (session) {
+                    // S'assurer que le token est dans localStorage
+                    if (session.access_token) {
+                        localStorage.setItem('ffemonitor_token', session.access_token);
+                    }
                     window.location.href = '/app';
                     return;
                 }
@@ -355,6 +359,11 @@
                     });
 
                     if (error) throw error;
+
+                    // Stocker le token pour app.html
+                    if (data.session?.access_token) {
+                        localStorage.setItem('ffemonitor_token', data.session.access_token);
+                    }
 
                     btnText.textContent = 'Connecté !';
                     setTimeout(() => {
@@ -432,7 +441,10 @@
                         tabs[0].click(); // Switch to login tab
                     }, 3000);
                 } else {
-                    // Auto-logged in
+                    // Auto-logged in - stocker le token
+                    if (data.session?.access_token) {
+                        localStorage.setItem('ffemonitor_token', data.session.access_token);
+                    }
                     btnText.textContent = 'Compte créé !';
                     setTimeout(() => {
                         window.location.href = '/app';
