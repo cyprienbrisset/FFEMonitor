@@ -19,14 +19,16 @@ from backend.routers import health, concours, auth, stats, calendar
 from backend.utils.logger import setup_logger, get_logger
 
 # Import conditionnel du router subscriptions (Supabase mode)
+subscriptions = None
 HAS_SUBSCRIPTIONS = False
 if settings.supabase_configured:
     try:
         from backend.routers import subscriptions
-        HAS_SUBSCRIPTIONS = True
+        HAS_SUBSCRIPTIONS = subscriptions is not None
     except Exception as e:
         # Log l'erreur mais continue sans le module subscriptions
         print(f"Warning: subscriptions module not loaded: {e}")
+        subscriptions = None
         HAS_SUBSCRIPTIONS = False
 
 # Configuration du logger principal
@@ -134,7 +136,7 @@ app.include_router(stats.router)
 app.include_router(calendar.router)
 
 # Router subscriptions (mode Supabase multi-utilisateurs)
-if HAS_SUBSCRIPTIONS:
+if HAS_SUBSCRIPTIONS and subscriptions is not None:
     app.include_router(subscriptions.router)
 
 # Servir les fichiers statiques du frontend
