@@ -274,17 +274,43 @@ class FFEScraper:
         """
         from datetime import datetime, date
 
-        # Ordre de priorité pour la détection (du plus spécifique au moins spécifique)
+        # Patterns pour détecter si les engagements sont VRAIMENT ouverts
+        # On cherche des boutons/liens spécifiques, pas juste du texte
+        engagement_patterns = [
+            # Bouton "Engager" ou lien d'engagement
+            r'<a[^>]*href="[^"]*engager[^"]*"[^>]*>',
+            r'<button[^>]*>.*?[Ee]ngager.*?</button>',
+            r'>Engager<',
+            r'>S\'engager<',
+            # Badge/label "Ouvert aux engagements" dans un élément spécifique
+            r'class="[^"]*badge[^"]*"[^>]*>.*?[Oo]uvert.*?engagements',
+            r'class="[^"]*statut[^"]*"[^>]*>.*?[Oo]uvert',
+            r'class="[^"]*status[^"]*"[^>]*>.*?[Oo]uvert',
+        ]
+
+        demande_patterns = [
+            # Bouton "Demande de participation"
+            r'<a[^>]*href="[^"]*demande[^"]*"[^>]*>',
+            r'>Demande de participation<',
+            r'>Faire une demande<',
+        ]
+
+        # Vérifier d'abord les patterns d'engagement (boutons/liens)
+        for pattern in engagement_patterns:
+            if re.search(pattern, html, re.IGNORECASE):
+                logger.info(f"Détecté OUVERT via pattern: {pattern[:50]}")
+                return 'engagement', True
+
+        for pattern in demande_patterns:
+            if re.search(pattern, html, re.IGNORECASE):
+                logger.info(f"Détecté DEMANDE via pattern: {pattern[:50]}")
+                return 'demande', True
+
+        # États fermés - patterns précis
         status_patterns = [
-            # États "ouverts" - prioritaires
-            (r'[Oo]uvert(?:e)?(?:s)?\s+aux\s+engagements', 'engagement', True),
-            (r'[Oo]uvert(?:e)?(?:s)?\s+aux\s+demandes', 'demande', True),
-            (r'[Dd]emande\s+de\s+participation', 'demande', True),
-            (r'[Ee]ngagements?\s+ouverts?', 'engagement', True),
-            # États fermés - patterns précis
             (r'[Cc]oncours\s+termin[ée]', 'termine', False),
             (r'[Cc]oncours\s+annul[ée]', 'annule', False),
-            (r'[Aa]nnul[ée]', 'annule', False),  # Pattern plus large pour "Annulé" seul
+            (r'[Aa]nnul[ée]', 'annule', False),
             (r'[Cc]oncours\s+en\s+cours', 'en_cours', False),
             (r'[Ee]ngagements?\s+clôtur[ée]s?', 'cloture', False),
             (r'[Ii]nscriptions?\s+clôtur[ée]e?s?', 'cloture', False),
