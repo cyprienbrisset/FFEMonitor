@@ -70,7 +70,6 @@ services:
       - CHECK_INTERVAL=${CHECK_INTERVAL:-5}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - DATABASE_PATH=/app/data/ffemonitor.db
-      - COOKIES_PATH=/app/data/cookies.json
 
     # Ressources
     deploy:

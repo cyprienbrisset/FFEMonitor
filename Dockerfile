@@ -7,7 +7,7 @@ FROM python:3.11-slim-bookworm
 
 # Metadata
 LABEL maintainer="FFE Monitor"
-LABEL description="Surveillance automatique des concours FFE avec notifications multi-canal"
+LABEL description="Surveillance automatique des concours FFE avec notifications push OneSignal"
 LABEL version="2.0"
 
 # Variables d'environnement

@@ -38,22 +38,15 @@ class Settings(BaseSettings):
 
     # Paths
     database_path: str = "data/ffemonitor.db"
-    cookies_path: str = "data/cookies.json"
 
-    # URLs FFE
+    # URLs FFE (pour le scraper)
     ffe_base_url: str = "https://ffecompet.ffe.com"
-    ffe_login_url: str = "https://ffecompet.ffe.com/login"
     ffe_concours_url: str = "https://ffecompet.ffe.com/concours"
 
     @property
     def database_full_path(self) -> Path:
         """Retourne le chemin complet vers la base de données."""
         return Path(self.database_path)
-
-    @property
-    def cookies_full_path(self) -> Path:
-        """Retourne le chemin complet vers le fichier cookies."""
-        return Path(self.cookies_path)
 
     @property
     def supabase_configured(self) -> bool:
