@@ -2141,8 +2141,26 @@ body {
     grid-column: 1 / -1;
 }
 
-.calendar-container {
+.calendar-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+}
+
+@media (max-width: 900px) {
+    .calendar-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+.calendar-left {
     position: relative;
+}
+
+.calendar-right {
+    min-height: 300px;
+    display: flex;
+    flex-direction: column;
 }
 
 .calendar-nav {
@@ -2287,9 +2305,34 @@ body {
 }
 
 .calendar-events {
-    margin-top: 20px;
-    padding-top: 20px;
-    border-top: 1px solid var(--cream-dark);
+    flex: 1;
+    padding: 16px;
+    background: var(--cream);
+    border-radius: var(--radius-md);
+    overflow-y: auto;
+    max-height: 400px;
+}
+
+.calendar-events-placeholder {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 32px;
+    background: var(--cream);
+    border-radius: var(--radius-md);
+    color: var(--gray);
+    text-align: center;
+}
+
+.calendar-events-placeholder .placeholder-icon {
+    font-size: 2rem;
+    margin-bottom: 12px;
+}
+
+.calendar-events-placeholder p {
+    font-size: 0.875rem;
 }
 
 .events-title {
