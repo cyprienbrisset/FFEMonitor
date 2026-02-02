@@ -4,6 +4,9 @@ Chargement des variables d'environnement via pydantic-settings.
 """
 
 from pathlib import Path
+from typing import Any
+
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -31,6 +34,20 @@ class Settings(BaseSettings):
     delay_free: int = 600      # 10 minutes
     delay_premium: int = 60    # 1 minute
     delay_pro: int = 10        # 10 secondes
+
+    @field_validator("delay_free", "delay_premium", "delay_pro", "check_interval", mode="before")
+    @classmethod
+    def parse_int_or_default(cls, v: Any, info) -> int:
+        """Parse les entiers, retourne la valeur par défaut si vide."""
+        if v is None or v == "":
+            defaults = {
+                "delay_free": 600,
+                "delay_premium": 60,
+                "delay_pro": 10,
+                "check_interval": 5,
+            }
+            return defaults.get(info.field_name, 0)
+        return int(v)
 
     # Application
     check_interval: int = 5  # secondes
