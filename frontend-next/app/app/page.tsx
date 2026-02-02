@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -19,6 +19,7 @@ import { ConcoursList } from '@/components/dashboard/ConcoursList'
 import { Calendar } from '@/components/dashboard/Calendar'
 import { UserProfileModal } from '@/components/dashboard/UserProfileModal'
 import { ExtensionModal } from '@/components/dashboard/ExtensionModal'
+import { MobileNav } from '@/components/dashboard/MobileNav'
 
 const REFRESH_INTERVAL = 3000
 
@@ -29,8 +30,13 @@ export default function DashboardPage() {
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
   const [showProfile, setShowProfile] = useState(false)
   const [showExtension, setShowExtension] = useState(false)
+  const [showAddForm, setShowAddForm] = useState(false)
   const router = useRouter()
   const { session, user, signOut, loading: authLoading } = useAuth()
+
+  // Refs for mobile navigation
+  const addFormRef = useRef<HTMLDivElement>(null)
+  const calendarRef = useRef<HTMLDivElement>(null)
 
   const accessToken = session?.access_token
 
@@ -85,6 +91,21 @@ export default function DashboardPage() {
     await signOut()
     router.push('/login')
     router.refresh()
+  }
+
+  // Mobile nav handlers
+  const scrollToAddForm = () => {
+    setShowAddForm(true)
+    setTimeout(() => {
+      addFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      // Focus the input
+      const input = addFormRef.current?.querySelector('input')
+      input?.focus()
+    }, 100)
+  }
+
+  const scrollToCalendar = () => {
+    calendarRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
   return (
@@ -148,13 +169,17 @@ export default function DashboardPage() {
 
       {/* Bento Grid */}
       <main className="bento-grid">
-        <AddConcoursForm onAdd={handleAddConcours} message={message} />
+        <div ref={addFormRef}>
+          <AddConcoursForm onAdd={handleAddConcours} message={message} />
+        </div>
 
         <StatsCard count={total} />
 
         <ConcoursList concours={concours} onDelete={handleDeleteConcours} />
 
-        <Calendar accessToken={accessToken} />
+        <div ref={calendarRef}>
+          <Calendar accessToken={accessToken} />
+        </div>
       </main>
 
       {/* Footer */}
@@ -182,6 +207,13 @@ export default function DashboardPage() {
       {showExtension && (
         <ExtensionModal onClose={() => setShowExtension(false)} />
       )}
+
+      {/* Mobile Navigation */}
+      <MobileNav
+        onAddConcours={scrollToAddForm}
+        onOpenCalendar={scrollToCalendar}
+        onOpenProfile={() => setShowProfile(true)}
+      />
     </div>
   )
 }

@@ -2573,6 +2573,499 @@ body {
 }
 
 /* ============================================================================
+   Mobile Navigation - Orbital FAB Menu
+   ============================================================================ */
+.mobile-nav {
+    display: none;
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 1000;
+}
+
+@media (max-width: 768px) {
+    .mobile-nav {
+        display: block;
+    }
+
+    /* Hide desktop header actions on mobile */
+    .header-actions {
+        display: none !important;
+    }
+
+    /* Adjust main content for mobile nav */
+    .dashboard-content {
+        padding-bottom: 100px;
+    }
+}
+
+/* Backdrop */
+.mobile-nav-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0);
+    pointer-events: none;
+    transition: background 0.3s ease;
+}
+
+.mobile-nav.open .mobile-nav-backdrop {
+    background: rgba(0, 0, 0, 0.2);
+    pointer-events: auto;
+    backdrop-filter: blur(2px);
+}
+
+.mobile-nav.closing .mobile-nav-backdrop {
+    background: rgba(0, 0, 0, 0);
+}
+
+/* Main FAB Button */
+.mobile-nav-fab {
+    position: relative;
+    width: 60px;
+    height: 60px;
+    border: none;
+    border-radius: 50%;
+    background: linear-gradient(145deg, var(--pastel-sage), var(--pastel-sage-dark));
+    box-shadow:
+        0 4px 20px rgba(0, 0, 0, 0.15),
+        0 2px 8px rgba(0, 0, 0, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    cursor: pointer;
+    z-index: 10;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-nav-fab:active {
+    transform: scale(0.92);
+}
+
+.mobile-nav.open .mobile-nav-fab {
+    background: linear-gradient(145deg, var(--pastel-coral), var(--pastel-coral-dark));
+    transform: rotate(45deg);
+}
+
+.mobile-nav.closing .mobile-nav-fab {
+    transform: rotate(0deg);
+}
+
+/* FAB Icon */
+.fab-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+}
+
+.fab-icon svg {
+    width: 24px;
+    height: 24px;
+    color: var(--charcoal);
+    transition: all 0.3s ease;
+}
+
+.mobile-nav.open .fab-icon svg {
+    color: var(--charcoal);
+}
+
+/* FAB Ripple Effect */
+.fab-ripple {
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    border: 2px solid var(--pastel-sage-dark);
+    opacity: 0;
+    animation: none;
+}
+
+.mobile-nav.open .fab-ripple {
+    animation: fab-pulse 1.5s ease-out infinite;
+}
+
+@keyframes fab-pulse {
+    0% {
+        transform: scale(1);
+        opacity: 0.5;
+    }
+    100% {
+        transform: scale(1.5);
+        opacity: 0;
+    }
+}
+
+/* Orbital Menu Container */
+.mobile-nav-orbital {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 60px;
+    height: 60px;
+    pointer-events: none;
+}
+
+/* Orbital Menu Items */
+.orbital-item {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 52px;
+    height: 52px;
+    border: none;
+    border-radius: 50%;
+    background: var(--item-color, var(--cream));
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.12);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    opacity: 0;
+    transform: translate(0, 0) scale(0.5);
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition-delay: var(--item-delay, 0ms);
+    pointer-events: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-nav.open .orbital-item {
+    opacity: 1;
+    transform: translate(var(--item-x), var(--item-y)) scale(1);
+    pointer-events: auto;
+}
+
+.mobile-nav.closing .orbital-item {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.5);
+    transition-delay: calc(150ms - var(--item-delay, 0ms));
+}
+
+.orbital-item:active {
+    transform: translate(var(--item-x), var(--item-y)) scale(0.9) !important;
+}
+
+/* Orbital Item Icon */
+.orbital-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.orbital-icon svg {
+    width: 20px;
+    height: 20px;
+    color: var(--charcoal);
+}
+
+/* Orbital Item Label */
+.orbital-label {
+    font-size: 0.5rem;
+    font-weight: 600;
+    color: var(--charcoal);
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    opacity: 0.8;
+}
+
+/* ============================================================================
+   Mobile-Optimized Dashboard Styles
+   ============================================================================ */
+@media (max-width: 768px) {
+    /* Dashboard Layout */
+    .dashboard {
+        padding: 16px;
+        padding-bottom: 120px;
+    }
+
+    .dashboard-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+        margin-bottom: 20px;
+    }
+
+    .dashboard-header h1 {
+        font-size: 1.5rem;
+    }
+
+    /* Bento Grid */
+    .bento-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+
+    .bento-card {
+        padding: 20px;
+        border-radius: var(--radius-md);
+    }
+
+    .card-header {
+        margin-bottom: 16px;
+    }
+
+    .card-header h2 {
+        font-size: 1rem;
+    }
+
+    /* Add Concours Card */
+    .card-add {
+        padding: 16px;
+    }
+
+    .add-form {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .add-form input {
+        width: 100%;
+        height: 52px;
+        font-size: 1rem;
+    }
+
+    .btn-add {
+        width: 100%;
+        height: 52px;
+        justify-content: center;
+        font-size: 1rem;
+    }
+
+    /* Concours Cards */
+    .concours-grid {
+        gap: 12px;
+    }
+
+    .concours-card {
+        padding: 16px;
+        min-height: auto;
+    }
+
+    .concours-number {
+        font-size: 0.7rem;
+    }
+
+    .concours-name {
+        font-size: 0.95rem;
+        -webkit-line-clamp: 2;
+    }
+
+    .concours-meta {
+        gap: 8px;
+    }
+
+    .concours-meta-item {
+        font-size: 0.75rem;
+    }
+
+    .concours-actions {
+        padding-top: 12px;
+        gap: 8px;
+    }
+
+    .btn-access,
+    .btn-delete {
+        height: 44px;
+        font-size: 0.875rem;
+        padding: 0 16px;
+    }
+
+    .btn-access {
+        flex: 1;
+    }
+
+    .btn-delete {
+        width: 44px;
+        min-width: 44px;
+        padding: 0;
+    }
+
+    /* Calendar */
+    .calendar-layout {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+
+    .calendar-nav {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .calendar-month {
+        font-size: 1.1rem;
+    }
+
+    .calendar-today-btn {
+        order: 5;
+        flex: 1 0 100%;
+        margin-top: 4px;
+    }
+
+    .calendar-day {
+        min-height: 48px;
+    }
+
+    .calendar-day .day-number {
+        font-size: 0.9rem;
+    }
+
+    .calendar-right {
+        min-height: 200px;
+    }
+
+    .calendar-events {
+        max-height: 300px;
+    }
+
+    /* Stats Card */
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+
+    .stat-item {
+        padding: 16px;
+    }
+
+    .stat-value {
+        font-size: 1.5rem;
+    }
+
+    .stat-label {
+        font-size: 0.7rem;
+    }
+
+    /* Status Bar */
+    .status-bar {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+        padding: 16px;
+    }
+
+    .status-item {
+        font-size: 0.8rem;
+    }
+
+    /* Modal Adjustments */
+    .modal-overlay {
+        padding: 16px;
+        align-items: flex-end;
+    }
+
+    .modal-content {
+        max-width: 100%;
+        max-height: 85vh;
+        border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+        margin-bottom: 0;
+    }
+
+    /* Empty State */
+    .empty-state {
+        padding: 32px 16px;
+    }
+
+    .empty-icon {
+        width: 80px;
+        height: 80px;
+    }
+
+    .empty-title {
+        font-size: 1rem;
+    }
+
+    .empty-hint {
+        font-size: 0.8rem;
+    }
+}
+
+/* Extra small devices */
+@media (max-width: 375px) {
+    .dashboard {
+        padding: 12px;
+    }
+
+    .bento-card {
+        padding: 16px;
+    }
+
+    .mobile-nav {
+        bottom: 16px;
+        right: 16px;
+    }
+
+    .mobile-nav-fab {
+        width: 56px;
+        height: 56px;
+    }
+
+    .orbital-item {
+        width: 48px;
+        height: 48px;
+    }
+
+    .orbital-label {
+        display: none;
+    }
+}
+
+/* Safe area for notched phones */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+    .mobile-nav {
+        bottom: calc(24px + env(safe-area-inset-bottom));
+    }
+
+    .dashboard-content {
+        padding-bottom: calc(100px + env(safe-area-inset-bottom));
+    }
+
+    @media (max-width: 375px) {
+        .mobile-nav {
+            bottom: calc(16px + env(safe-area-inset-bottom));
+        }
+    }
+}
+
+/* ============================================================================
+   Touch-Friendly Interactions
+   ============================================================================ */
+@media (hover: none) and (pointer: coarse) {
+    /* Larger touch targets */
+    .btn-access,
+    .btn-delete,
+    .btn-add,
+    .calendar-nav-btn,
+    .calendar-today-btn,
+    .calendar-day:not(.empty) {
+        min-height: 44px;
+    }
+
+    /* Remove hover effects that don't work well on touch */
+    .concours-card:hover {
+        transform: none;
+    }
+
+    .btn-access:hover,
+    .btn-delete:hover,
+    .btn-add:hover {
+        transform: none;
+    }
+
+    /* Active states instead */
+    .concours-card:active {
+        transform: scale(0.98);
+        transition: transform 0.1s ease;
+    }
+
+    .btn-access:active,
+    .btn-delete:active,
+    .btn-add:active {
+        transform: scale(0.95);
+        transition: transform 0.1s ease;
+    }
+}
+
+/* ============================================================================
    Print Styles
    ============================================================================ */
 @media print {
@@ -2584,7 +3077,8 @@ body {
     .btn-delete,
     .btn-access,
     .test-notifications,
-    .card-add {
+    .card-add,
+    .mobile-nav {
         display: none !important;
     }
 
