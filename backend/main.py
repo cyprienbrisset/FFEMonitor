@@ -19,11 +19,15 @@ from backend.routers import health, concours, auth, stats, calendar
 from backend.utils.logger import setup_logger, get_logger
 
 # Import conditionnel du router subscriptions (Supabase mode)
-try:
-    from backend.routers import subscriptions
-    HAS_SUBSCRIPTIONS = True
-except ImportError:
-    HAS_SUBSCRIPTIONS = False
+HAS_SUBSCRIPTIONS = False
+if settings.supabase_configured:
+    try:
+        from backend.routers import subscriptions
+        HAS_SUBSCRIPTIONS = True
+    except Exception as e:
+        # Log l'erreur mais continue sans le module subscriptions
+        print(f"Warning: subscriptions module not loaded: {e}")
+        HAS_SUBSCRIPTIONS = False
 
 # Configuration du logger principal
 setup_logger("ffemonitor", settings.log_level)
