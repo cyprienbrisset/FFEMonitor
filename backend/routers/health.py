@@ -10,7 +10,7 @@ from backend.routers.auth import require_auth
 router = APIRouter(tags=["Health"])
 
 
-@router.get("/health", response_model=HealthResponse)
+@router.api_route("/health", methods=["GET", "HEAD"], response_model=HealthResponse)
 async def health_check() -> HealthResponse:
     """
     Vérifie l'état de santé de l'application.
