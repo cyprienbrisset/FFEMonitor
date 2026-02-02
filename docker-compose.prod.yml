@@ -1,54 +1,25 @@
 # ============================================
-# FFE Monitor - Docker Compose Production
-# Avec Traefik pour HTTPS automatique
-# ============================================
-#
-# Usage:
-#   1. Configurer DOMAIN et ACME_EMAIL dans .env
-#   2. docker-compose -f docker-compose.prod.yml up -d
-#
+# FFE Monitor - Docker Compose pour Coolify
+# Un seul conteneur avec Backend + Frontend
 # ============================================
 
 services:
-  # ===== Reverse Proxy avec HTTPS automatique =====
-  traefik:
-    image: traefik:v2.10
-    container_name: traefik
-    restart: unless-stopped
-    command:
-      - "--api.dashboard=false"
-      - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"
-      - "--entrypoints.web.address=:80"
-      - "--entrypoints.websecure.address=:443"
-      # Let's Encrypt
-      - "--certificatesresolvers.letsencrypt.acme.httpchallenge=true"
-      - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
-      - "--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL:-admin@example.com}"
-      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
-      # Redirection HTTP -> HTTPS
-      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
-      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - traefik_letsencrypt:/letsencrypt
-    networks:
-      - ffemonitor_network
-
-  # ===== Application FFE Monitor =====
   ffemonitor:
     build:
       context: .
-      dockerfile: Dockerfile
-    container_name: ffemonitor
+      dockerfile: Dockerfile.combined
+      args:
+        - NEXT_PUBLIC_SUPABASE_URL=${SUPABASE_URL}
+        - NEXT_PUBLIC_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+        - NEXT_PUBLIC_API_URL=${API_URL:-}
+        - NEXT_PUBLIC_ONESIGNAL_APP_ID=${ONESIGNAL_APP_ID}
     restart: unless-stopped
-    networks:
-      - ffemonitor_network
 
-    # Volumes persistants
+    # Port principal (frontend) - Coolify expose celui-ci
+    ports:
+      - "3000:3000"
+
+    # Volumes
     volumes:
       - ffemonitor_data:/app/data
 
@@ -62,65 +33,21 @@ services:
       # OneSignal
       - ONESIGNAL_APP_ID=${ONESIGNAL_APP_ID}
       - ONESIGNAL_API_KEY=${ONESIGNAL_API_KEY}
-      # Délais
+      # Délais notifications
       - DELAY_FREE=${DELAY_FREE:-600}
       - DELAY_PREMIUM=${DELAY_PREMIUM:-60}
       - DELAY_PRO=${DELAY_PRO:-10}
       # Application
       - CHECK_INTERVAL=${CHECK_INTERVAL:-5}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
-      - DATABASE_PATH=/app/data/ffemonitor.db
-
-    # Ressources
-    deploy:
-      resources:
-        limits:
-          cpus: '2.0'
-          memory: 2G
-        reservations:
-          cpus: '0.5'
-          memory: 512M
 
     # Health check
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8000/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 60s
 
-    # Logging
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "50m"
-        max-file: "5"
-
-    # Labels Traefik
-    labels:
-      - "traefik.enable=true"
-      # Router HTTPS
-      - "traefik.http.routers.ffemonitor.rule=Host(`${DOMAIN:-localhost}`)"
-      - "traefik.http.routers.ffemonitor.entrypoints=websecure"
-      - "traefik.http.routers.ffemonitor.tls.certresolver=letsencrypt"
-      # Service
-      - "traefik.http.services.ffemonitor.loadbalancer.server.port=8000"
-      # Headers de sécurité
-      - "traefik.http.middlewares.ffemonitor-headers.headers.stsSeconds=31536000"
-      - "traefik.http.middlewares.ffemonitor-headers.headers.stsIncludeSubdomains=true"
-      - "traefik.http.middlewares.ffemonitor-headers.headers.stsPreload=true"
-      - "traefik.http.middlewares.ffemonitor-headers.headers.contentTypeNosniff=true"
-      - "traefik.http.middlewares.ffemonitor-headers.headers.browserXssFilter=true"
-      - "traefik.http.routers.ffemonitor.middlewares=ffemonitor-headers"
-
-# Volumes
 volumes:
   ffemonitor_data:
-    driver: local
-  traefik_letsencrypt:
-    driver: local
-
-# Réseau
-networks:
-  ffemonitor_network:
-    name: ffemonitor_network

@@ -3,7 +3,6 @@ Configuration de l'application FFE Monitor.
 Chargement des variables d'environnement via pydantic-settings.
 """
 
-from pathlib import Path
 from typing import Any
 
 from pydantic import field_validator
@@ -22,6 +21,7 @@ class Settings(BaseSettings):
 
     # Supabase (obligatoire)
     supabase_url: str = ""
+    supabase_key: str = ""  # Alias pour supabase_anon_key
     supabase_anon_key: str = ""
     supabase_service_key: str = ""
     supabase_jwt_secret: str = ""
@@ -53,24 +53,26 @@ class Settings(BaseSettings):
     check_interval: int = 5  # secondes
     log_level: str = "INFO"
 
-    # Paths
-    database_path: str = "data/ffemonitor.db"
-
     # URLs FFE (pour le scraper)
     ffe_base_url: str = "https://ffecompet.ffe.com"
     ffe_concours_url: str = "https://ffecompet.ffe.com/concours"
 
     @property
-    def database_full_path(self) -> Path:
-        """Retourne le chemin complet vers la base de données."""
-        return Path(self.database_path)
+    def supabase_anon_key_resolved(self) -> str:
+        """Retourne la clé anonyme (supabase_anon_key ou supabase_key)."""
+        return self.supabase_anon_key or self.supabase_key
 
     @property
     def supabase_configured(self) -> bool:
-        """Vérifie si Supabase est correctement configuré."""
+        """Vérifie si Supabase est configuré (URL + clé anonyme minimum)."""
+        return bool(self.supabase_url and self.supabase_anon_key_resolved)
+
+    @property
+    def supabase_fully_configured(self) -> bool:
+        """Vérifie si Supabase est entièrement configuré (avec service_key et jwt_secret)."""
         return bool(
             self.supabase_url
-            and self.supabase_anon_key
+            and self.supabase_anon_key_resolved
             and self.supabase_service_key
             and self.supabase_jwt_secret
         )

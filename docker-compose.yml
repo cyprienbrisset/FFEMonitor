@@ -1,26 +1,27 @@
 # ============================================
 # FFE Monitor - Docker Compose
-# Déploiement simple et rapide
+# Backend + Frontend Next.js
 # ============================================
 #
 # Usage:
 #   1. Copier .env.example vers .env et remplir les valeurs
 #   2. docker-compose up -d
-#   3. Ouvrir http://localhost:8000
+#   3. Ouvrir http://localhost:3000
 #
 # ============================================
 
 services:
-  ffemonitor:
+  # ===== BACKEND API =====
+  backend:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: ffemonitor
+    container_name: ffemonitor-backend
     restart: unless-stopped
 
-    # Port
-    ports:
-      - "8000:8000"
+    # Port interne (accès via frontend proxy)
+    expose:
+      - "8000"
 
     # Volumes persistants
     volumes:
@@ -46,7 +47,6 @@ services:
       # ===== APPLICATION =====
       - CHECK_INTERVAL=${CHECK_INTERVAL:-5}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
-      - DATABASE_PATH=/app/data/ffemonitor.db
 
     # Health check
     healthcheck:
@@ -55,6 +55,50 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+
+    # Logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ===== FRONTEND NEXT.JS =====
+  frontend:
+    build:
+      context: ./frontend-next
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_SUPABASE_URL=${SUPABASE_URL}
+        - NEXT_PUBLIC_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+        - NEXT_PUBLIC_API_URL=http://backend:8000
+        - NEXT_PUBLIC_ONESIGNAL_APP_ID=${ONESIGNAL_APP_ID}
+    container_name: ffemonitor-frontend
+    restart: unless-stopped
+
+    # Port exposé
+    ports:
+      - "3000:3000"
+
+    # Dépendance
+    depends_on:
+      backend:
+        condition: service_healthy
+
+    # Variables d'environnement runtime
+    environment:
+      - NEXT_PUBLIC_SUPABASE_URL=${SUPABASE_URL}
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      - NEXT_PUBLIC_API_URL=http://backend:8000
+      - NEXT_PUBLIC_ONESIGNAL_APP_ID=${ONESIGNAL_APP_ID}
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
     # Logging
     logging:

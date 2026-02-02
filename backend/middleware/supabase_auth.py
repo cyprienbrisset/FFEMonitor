@@ -6,9 +6,7 @@ Vérifie les JWT tokens Supabase et injecte l'utilisateur dans les requêtes.
 from typing import Optional
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-import jwt
 
-from backend.config import settings
 from backend.supabase_client import supabase
 from backend.utils.logger import get_logger
 
@@ -40,33 +38,32 @@ class UserContext:
         self.notification_push = notification_push
 
 
-def verify_supabase_token(token: str) -> Optional[dict]:
+async def verify_supabase_token(token: str) -> Optional[dict]:
     """
-    Vérifie un token JWT Supabase.
+    Vérifie un token JWT Supabase via l'API Supabase.
 
     Args:
         token: Le JWT token à vérifier
 
     Returns:
-        Le payload du token si valide, None sinon
+        Les infos utilisateur si valide, None sinon
     """
-    if not settings.supabase_jwt_secret:
-        logger.warning("SUPABASE_JWT_SECRET non configuré")
+    if not token:
+        logger.warning("Token vide")
         return None
 
+    logger.debug(f"Validation token (premiers 50 chars): {token[:50]}...")
+
     try:
-        payload = jwt.decode(
-            token,
-            settings.supabase_jwt_secret,
-            algorithms=["HS256"],
-            audience="authenticated",
-        )
-        return payload
-    except jwt.ExpiredSignatureError:
-        logger.warning("Token Supabase expiré")
+        # Utiliser le client Supabase pour valider le token
+        user_info = await supabase.get_user_from_token(token)
+        if user_info:
+            logger.debug(f"Token valide pour user: {user_info.get('email')}")
+            return user_info
+        logger.warning("Token invalide ou expiré (Supabase)")
         return None
-    except jwt.InvalidTokenError as e:
-        logger.warning(f"Token Supabase invalide: {e}")
+    except Exception as e:
+        logger.warning(f"Erreur validation token: {e}")
         return None
 
 
@@ -90,16 +87,18 @@ async def get_current_user(
         )
 
     token = credentials.credentials
-    payload = verify_supabase_token(token)
+    user_info = await verify_supabase_token(token)
 
-    if not payload:
+    if not user_info:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token invalide ou expiré",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    user_id = payload.get("sub")
+    user_id = user_info.get("id")
+    user_email = user_info.get("email", "")
+
     if not user_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -113,13 +112,13 @@ async def get_current_user(
         # Créer un contexte minimal si pas de profil
         return UserContext(
             id=user_id,
-            email=payload.get("email", ""),
+            email=user_email,
             plan="free",
         )
 
     return UserContext(
         id=user_id,
-        email=profile.get("email", payload.get("email", "")),
+        email=profile.get("email", user_email),
         plan=profile.get("plan", "free"),
         onesignal_player_id=profile.get("onesignal_player_id"),
         telegram_chat_id=profile.get("telegram_chat_id"),

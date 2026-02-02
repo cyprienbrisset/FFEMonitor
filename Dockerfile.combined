@@ -1,0 +1,151 @@
+# ============================================
+# FFE Monitor - Dockerfile Combiné
+# Backend Python + Frontend Next.js
+# Pour déploiement simple sur Coolify
+# ============================================
+
+# ===== STAGE 1: Build Frontend =====
+FROM node:20-alpine AS frontend-builder
+
+WORKDIR /frontend
+
+# Copier les fichiers package
+COPY frontend-next/package.json frontend-next/package-lock.json* ./
+
+# Installer les dépendances
+RUN npm ci
+
+# Copier le code source frontend
+COPY frontend-next/ ./
+
+# Build arguments
+ARG NEXT_PUBLIC_SUPABASE_URL
+ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
+ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_ONESIGNAL_APP_ID
+
+# Variables d'environnement pour le build
+ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL
+ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_ONESIGNAL_APP_ID=$NEXT_PUBLIC_ONESIGNAL_APP_ID
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# Build Next.js
+RUN npm run build
+
+# ===== STAGE 2: Production =====
+FROM python:3.11-slim-bookworm
+
+# Metadata
+LABEL maintainer="FFE Monitor"
+LABEL description="FFE Monitor - Backend + Frontend combinés"
+
+# Variables d'environnement
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV PLAYWRIGHT_BROWSERS_PATH=/app/browsers
+ENV NODE_ENV=production
+
+# Installer Node.js et dépendances système
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    # Node.js
+    curl \
+    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
+    # Dépendances Playwright/Chromium
+    libnss3 \
+    libnspr4 \
+    libatk1.0-0 \
+    libatk-bridge2.0-0 \
+    libcups2 \
+    libdrm2 \
+    libdbus-1-3 \
+    libxkbcommon0 \
+    libatspi2.0-0 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxfixes3 \
+    libxrandr2 \
+    libgbm1 \
+    libasound2 \
+    libpango-1.0-0 \
+    libcairo2 \
+    # Fonts
+    fonts-liberation \
+    fonts-noto-color-emoji \
+    # Utilitaires
+    wget \
+    ca-certificates \
+    supervisor \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+WORKDIR /app
+
+# Copier et installer les dépendances Python
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt
+
+# Installer Playwright et Chromium
+RUN playwright install chromium \
+    && playwright install-deps chromium
+
+# Copier le backend
+COPY backend/ ./backend/
+COPY run.py .
+
+# Copier le frontend buildé
+COPY --from=frontend-builder /frontend/.next/standalone ./frontend/
+COPY --from=frontend-builder /frontend/.next/static ./frontend/.next/static
+COPY --from=frontend-builder /frontend/public ./frontend/public
+
+# Créer le répertoire data
+RUN mkdir -p /app/data && chmod 755 /app/data
+
+# Configuration Supervisor pour gérer les deux processus
+RUN mkdir -p /etc/supervisor/conf.d
+
+COPY <<EOF /etc/supervisor/conf.d/supervisord.conf
+[supervisord]
+nodaemon=true
+user=root
+logfile=/var/log/supervisor/supervisord.log
+pidfile=/var/run/supervisord.pid
+
+[program:backend]
+command=python /app/run.py
+directory=/app
+autostart=true
+autorestart=true
+stdout_logfile=/dev/stdout
+stdout_logfile_maxbytes=0
+stderr_logfile=/dev/stderr
+stderr_logfile_maxbytes=0
+environment=PYTHONUNBUFFERED="1"
+
+[program:frontend]
+command=node /app/frontend/server.js
+directory=/app/frontend
+autostart=true
+autorestart=true
+stdout_logfile=/dev/stdout
+stdout_logfile_maxbytes=0
+stderr_logfile=/dev/stderr
+stderr_logfile_maxbytes=0
+environment=NODE_ENV="production",PORT="3000",HOSTNAME="0.0.0.0"
+EOF
+
+RUN mkdir -p /var/log/supervisor
+
+# Exposer les ports
+EXPOSE 3000 8000
+
+# Health check sur le frontend (port principal)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:3000 && \
+        wget --no-verbose --tries=1 --spider http://localhost:8000/health || exit 1
+
+# Démarrer Supervisor
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]

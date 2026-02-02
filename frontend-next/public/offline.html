@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#FAF7F2">
+    <title>Hors ligne - FFE Monitor</title>
+    <link rel="icon" href="/logo.svg" type="image/svg+xml">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #FAF7F2 0%, #F5F0E8 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .offline-container {
+            text-align: center;
+            max-width: 400px;
+            padding: 40px;
+            background: white;
+            border-radius: 24px;
+            box-shadow: 0 4px 24px rgba(139, 115, 85, 0.1);
+        }
+
+        .offline-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 24px;
+            background: linear-gradient(135deg, #8B7355 0%, #6B5344 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .offline-icon svg {
+            width: 40px;
+            height: 40px;
+            fill: white;
+        }
+
+        h1 {
+            font-family: 'DM Serif Display', Georgia, serif;
+            font-size: 1.75rem;
+            color: #3D3D3D;
+            margin-bottom: 12px;
+        }
+
+        p {
+            color: #6B6B6B;
+            font-size: 1rem;
+            line-height: 1.6;
+            margin-bottom: 24px;
+        }
+
+        .retry-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 28px;
+            background: linear-gradient(135deg, #8B7355 0%, #6B5344 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .retry-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(139, 115, 85, 0.3);
+        }
+
+        .retry-btn:active {
+            transform: translateY(0);
+        }
+
+        .retry-btn svg {
+            width: 18px;
+            height: 18px;
+            fill: currentColor;
+        }
+
+        .tips {
+            margin-top: 32px;
+            padding-top: 24px;
+            border-top: 1px solid #E8E4DD;
+        }
+
+        .tips h3 {
+            font-size: 0.875rem;
+            color: #8B7355;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .tips ul {
+            list-style: none;
+            text-align: left;
+        }
+
+        .tips li {
+            color: #6B6B6B;
+            font-size: 0.875rem;
+            padding: 6px 0;
+            padding-left: 20px;
+            position: relative;
+        }
+
+        .tips li::before {
+            content: "•";
+            position: absolute;
+            left: 0;
+            color: #8B7355;
+        }
+    </style>
+</head>
+<body>
+    <div class="offline-container">
+        <div class="offline-icon">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M2.28 3.28a.75.75 0 0 1 1.06-1.06l18.5 18.5a.75.75 0 0 1-1.06 1.06l-3.06-3.06A8.72 8.72 0 0 1 12 20c-3.2 0-6.08-1.36-8.12-3.55a.75.75 0 0 1 1.1-1.02A7.22 7.22 0 0 0 12 18.5c1.5 0 2.9-.42 4.09-1.13l-1.53-1.53A4.72 4.72 0 0 1 12 16.5c-1.3 0-2.48-.53-3.34-1.37a.75.75 0 0 1 1.02-1.1c.58.55 1.37.88 2.23.97L5.5 8.58A12.03 12.03 0 0 0 3.28 10a.75.75 0 0 1-1.06-1.06 13.4 13.4 0 0 1 2.38-1.68L2.28 3.28ZM12 4c2.95 0 5.68 1.03 7.84 2.76a.75.75 0 1 1-.96 1.16A10.77 10.77 0 0 0 12 5.5c-.76 0-1.5.07-2.22.21L8.38 4.3A12.24 12.24 0 0 1 12 4Zm5.67 7.47a.75.75 0 0 1-.06 1.06 7.2 7.2 0 0 1-1.88 1.2l-1.27-1.28a5.72 5.72 0 0 0 2.15-1.04.75.75 0 0 1 1.06.06Z"/>
+                <circle cx="12" cy="19" r="1.5"/>
+            </svg>
+        </div>
+
+        <h1>Vous êtes hors ligne</h1>
+        <p>Impossible de se connecter au serveur. Vérifiez votre connexion Internet et réessayez.</p>
+
+        <button class="retry-btn" onclick="window.location.reload()">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35Z"/>
+            </svg>
+            Réessayer
+        </button>
+
+        <div class="tips">
+            <h3>Conseils</h3>
+            <ul>
+                <li>Vérifiez que le Wi-Fi ou les données mobiles sont activés</li>
+                <li>Essayez de vous rapprocher de votre routeur</li>
+                <li>Redémarrez votre connexion Internet</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>

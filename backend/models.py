@@ -36,13 +36,12 @@ class ConcoursCreate(BaseModel):
 class ConcoursResponse(BaseModel):
     """Schéma de réponse pour un concours."""
 
-    id: int
     numero: int
     nom: str | None = None
-    statut: StatutConcours
-    notifie: bool
-    last_check: datetime | None
-    created_at: datetime
+    statut: StatutConcours = StatutConcours.FERME
+    notifie: bool = False
+    last_check: datetime | None = None
+    created_at: datetime | None = None
     date_debut: str | None = None
     date_fin: str | None = None
     lieu: str | None = None
@@ -70,6 +69,7 @@ class HealthResponse(BaseModel):
 class StatusResponse(BaseModel):
     """Schéma de réponse pour le statut global."""
 
+    ffe_connected: bool = False
     surveillance_active: bool
     last_check: datetime | None
     concours_surveilles: int

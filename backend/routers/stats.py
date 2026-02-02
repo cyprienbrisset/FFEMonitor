@@ -1,16 +1,15 @@
 """
 Router pour les statistiques et l'historique.
+Utilise Supabase comme base de données.
 """
 
 from fastapi import APIRouter, HTTPException, status, Depends, Query
 
-from backend.database import db
+from backend.supabase_client import supabase
 from backend.models import (
-    ConcoursStatsResponse,
     GlobalStatsResponse,
-    ActivityDataResponse,
 )
-from backend.routers.auth import require_auth
+from backend.middleware.supabase_auth import get_current_user
 from backend.utils.logger import get_logger
 
 logger = get_logger("api.stats")
@@ -18,7 +17,7 @@ logger = get_logger("api.stats")
 router = APIRouter(
     prefix="/stats",
     tags=["Statistics"],
-    dependencies=[Depends(require_auth)],
+    dependencies=[Depends(get_current_user)],
 )
 
 
@@ -31,50 +30,14 @@ async def get_global_stats() -> GlobalStatsResponse:
         Statistiques globales incluant nombre de concours,
         vérifications, ouvertures, etc.
     """
-    stats = await db.get_global_stats()
-    return GlobalStatsResponse(**stats)
+    stats = await supabase.get_global_stats()
 
-
-@router.get("/concours/{numero}", response_model=ConcoursStatsResponse)
-async def get_concours_stats(numero: int) -> ConcoursStatsResponse:
-    """
-    Récupère les statistiques détaillées d'un concours.
-
-    Args:
-        numero: Numéro du concours
-
-    Returns:
-        Statistiques du concours
-
-    Raises:
-        HTTPException 404: Si le concours n'existe pas
-    """
-    # Vérifier que le concours existe
-    concours = await db.get_concours_by_numero(numero)
-    if not concours:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Concours {numero} non trouvé",
-        )
-
-    stats = await db.get_concours_stats(numero)
-    return ConcoursStatsResponse(**stats)
-
-
-@router.get("/activity", response_model=ActivityDataResponse)
-async def get_activity_data(
-    period: str = Query("24h", pattern="^(24h|7d)$"),
-) -> ActivityDataResponse:
-    """
-    Récupère les données d'activité pour le graphique.
-
-    Args:
-        period: Période - "24h" pour les dernières 24 heures,
-                "7d" pour les 7 derniers jours
-
-    Returns:
-        Données formatées pour Chart.js avec labels,
-        nombre de vérifications et ouvertures
-    """
-    data = await db.get_activity_data(period)
-    return ActivityDataResponse(**data)
+    return GlobalStatsResponse(
+        total_concours=stats.get("total_concours", 0),
+        concours_ouverts=stats.get("concours_ouverts", 0),
+        total_checks=stats.get("total_checks", 0),
+        checks_today=0,  # TODO: implement
+        total_openings=stats.get("total_openings", 0),
+        avg_response_time_ms=0,
+        success_rate=100.0,
+    )

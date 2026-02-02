@@ -28,6 +28,51 @@ async def health_check() -> HealthResponse:
     )
 
 
+@router.get("/debug/supabase")
+async def debug_supabase():
+    """
+    Debug endpoint pour tester la connexion Supabase.
+    """
+    from backend.supabase_client import supabase
+    from backend.config import settings
+
+    result = {
+        "supabase_url": settings.supabase_url[:50] + "..." if settings.supabase_url else None,
+        "supabase_configured": settings.supabase_configured,
+        "supabase_fully_configured": settings.supabase_fully_configured,
+        "has_anon_key": bool(settings.supabase_anon_key_resolved),
+        "has_service_key": bool(settings.supabase_service_key),
+        "client_initialized": supabase._client is not None,
+        "service_client_initialized": supabase._service_client is not None,
+    }
+
+    # Tester l'accès à la table concours
+    if supabase._service_client:
+        try:
+            response = supabase._service_client.table("concours").select("*").limit(1).execute()
+            result["concours_table_access"] = "OK"
+            result["concours_count"] = len(response.data) if response.data else 0
+        except Exception as e:
+            result["concours_table_access"] = f"ERREUR: {str(e)}"
+
+        # Tester un insert
+        try:
+            test_data = {"numero": 999999, "statut": "ferme", "is_open": False}
+            insert_response = supabase._service_client.table("concours").upsert(
+                test_data, on_conflict="numero"
+            ).execute()
+            result["concours_insert_test"] = "OK"
+            # Supprimer le test
+            supabase._service_client.table("concours").delete().eq("numero", 999999).execute()
+            result["concours_delete_test"] = "OK"
+        except Exception as e:
+            result["concours_insert_test"] = f"ERREUR: {str(e)}"
+    else:
+        result["concours_table_access"] = "service_client non disponible"
+
+    return result
+
+
 @router.post("/test-push", response_model=MessageResponse, dependencies=[Depends(require_auth)])
 async def test_push_notification() -> MessageResponse:
     """

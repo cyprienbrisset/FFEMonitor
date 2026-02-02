@@ -1,6 +1,7 @@
 """
 Point d'entrée de l'application FFE Monitor.
 Configuration FastAPI et gestion du cycle de vie.
+Utilise Supabase comme base de données unique.
 """
 
 import asyncio
@@ -11,25 +12,11 @@ from fastapi import FastAPI, Request, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, RedirectResponse, HTMLResponse
-from jose import jwt, JWTError
 
 from backend.config import settings
-from backend.database import db
-from backend.routers import health, concours, auth, stats, calendar
+from backend.supabase_client import supabase
+from backend.routers import health, concours, auth, stats, calendar, subscriptions
 from backend.utils.logger import setup_logger, get_logger
-
-# Import conditionnel du router subscriptions (Supabase mode)
-subscriptions = None
-HAS_SUBSCRIPTIONS = False
-if settings.supabase_configured:
-    try:
-        from backend.routers import subscriptions
-        HAS_SUBSCRIPTIONS = subscriptions is not None
-    except Exception as e:
-        # Log l'erreur mais continue sans le module subscriptions
-        print(f"Warning: subscriptions module not loaded: {e}")
-        subscriptions = None
-        HAS_SUBSCRIPTIONS = False
 
 # Configuration du logger principal
 setup_logger("ffemonitor", settings.log_level)
@@ -41,6 +28,7 @@ app_state: dict = {
     "concours_count": 0,
     "surveillance_task": None,
     "notifier": None,
+    "notification_worker_task": None,
 }
 
 
@@ -54,9 +42,16 @@ async def lifespan(app: FastAPI):
     logger.info("FFE Monitor - Démarrage")
     logger.info("=" * 50)
 
-    # Connexion à la base de données
-    await db.connect()
-    app_state["concours_count"] = await db.count_concours()
+    # Vérifier la configuration Supabase
+    if not settings.supabase_configured:
+        logger.error("Supabase non configuré ! Vérifiez les variables d'environnement.")
+        raise RuntimeError("Supabase configuration missing")
+
+    logger.info("Connexion Supabase établie")
+
+    # Compter les concours existants
+    all_concours = await supabase.get_all_concours()
+    app_state["concours_count"] = len(all_concours)
 
     # Import différé pour éviter les imports circulaires
     from backend.services.surveillance import SurveillanceService
@@ -68,9 +63,13 @@ async def lifespan(app: FastAPI):
         notifier = get_notification_dispatcher()
         app_state["notifier"] = notifier
 
+        # Démarrer le worker de notifications
+        notification_worker_task = asyncio.create_task(notifier.start_worker())
+        app_state["notification_worker_task"] = notification_worker_task
+        logger.info("Worker de notifications démarré")
+
         # Démarrage de la surveillance (mode scraper uniquement)
         surveillance = SurveillanceService(
-            database=db,
             notifier=notifier,
             check_interval=settings.check_interval,
         )
@@ -101,12 +100,17 @@ async def lifespan(app: FastAPI):
         except asyncio.CancelledError:
             pass
 
+    # Arrêter le worker de notifications
+    if app_state.get("notification_worker_task"):
+        app_state["notification_worker_task"].cancel()
+        try:
+            await app_state["notification_worker_task"]
+        except asyncio.CancelledError:
+            pass
+
     # Fermer le notifier
     if app_state.get("notifier"):
         await app_state["notifier"].close()
-
-    # Déconnexion de la base de données
-    await db.disconnect()
 
     logger.info("FFE Monitor arrêté proprement")
 
@@ -134,12 +138,9 @@ app.include_router(health.router)
 app.include_router(concours.router)
 app.include_router(stats.router)
 app.include_router(calendar.router)
+app.include_router(subscriptions.router)
 
-# Router subscriptions (mode Supabase multi-utilisateurs)
-if HAS_SUBSCRIPTIONS and subscriptions is not None:
-    app.include_router(subscriptions.router)
-
-# Servir les fichiers statiques du frontend
+# Servir les fichiers statiques du frontend (ancien frontend HTML)
 frontend_path = Path(__file__).parent.parent / "frontend"
 if frontend_path.exists():
     app.mount("/static", StaticFiles(directory=frontend_path), name="static")
@@ -209,16 +210,6 @@ async def serve_app(request: Request):
     Sert l'application principale (protégée).
     Vérifie le token JWT côté serveur avant de servir la page.
     """
-    # Récupérer le token depuis le header Authorization ou le cookie
-    auth_header = request.headers.get("Authorization")
-    token = None
-
-    if auth_header and auth_header.startswith("Bearer "):
-        token = auth_header[7:]
-
-    # Si pas de token dans le header, on sert quand même la page
-    # car le JS côté client vérifiera le token stocké en localStorage
-    # et redirigera vers /login si nécessaire
     app_path = frontend_path / "app.html"
     if app_path.exists():
         return FileResponse(app_path)

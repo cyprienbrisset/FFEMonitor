@@ -1,13 +1,14 @@
 """
 Router pour les fonctionnalités de calendrier.
+Utilise Supabase comme base de données.
 """
 
 from datetime import datetime
 from fastapi import APIRouter, Depends, Query
 
-from backend.database import db
+from backend.supabase_client import supabase
 from backend.models import CalendarEvent, CalendarEventsResponse
-from backend.routers.auth import require_auth
+from backend.middleware.supabase_auth import get_current_user
 from backend.utils.logger import get_logger
 
 logger = get_logger("api.calendar")
@@ -15,7 +16,7 @@ logger = get_logger("api.calendar")
 router = APIRouter(
     prefix="/calendar",
     tags=["Calendar"],
-    dependencies=[Depends(require_auth)],
+    dependencies=[Depends(get_current_user)],
 )
 
 
@@ -47,20 +48,20 @@ async def get_calendar_events(
         end_date = f"{year:04d}-{month + 1:02d}-01"
 
     # Récupérer les concours dans la plage
-    concours_list = await db.get_concours_by_date_range(start_date, end_date)
+    concours_list = await supabase.get_concours_by_date_range(start_date, end_date)
 
     # Convertir en événements du calendrier
     events = []
     for c in concours_list:
         events.append(
             CalendarEvent(
-                numero=c["numero"],
+                numero=c.get("numero"),
                 nom=c.get("nom"),
                 date_debut=c.get("date_debut"),
                 date_fin=c.get("date_fin"),
                 lieu=c.get("lieu"),
-                statut=c["statut"],
-                notifie=c["notifie"],
+                statut=c.get("statut", "ferme"),
+                notifie=c.get("is_open", False),
             )
         )
 
@@ -79,19 +80,19 @@ async def get_all_calendar_events() -> dict:
     Returns:
         Liste de tous les concours avec dates
     """
-    all_concours = await db.get_all_concours()
+    all_concours = await supabase.get_all_concours()
 
     events = []
     for c in all_concours:
         if c.get("date_debut"):
             events.append({
-                "numero": c["numero"],
+                "numero": c.get("numero"),
                 "nom": c.get("nom"),
                 "date_debut": c.get("date_debut"),
                 "date_fin": c.get("date_fin"),
                 "lieu": c.get("lieu"),
-                "statut": c["statut"],
-                "notifie": c["notifie"],
+                "statut": c.get("statut", "ferme"),
+                "notifie": c.get("is_open", False),
             })
 
     return {"events": events, "total": len(events)}

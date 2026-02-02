@@ -1,12 +1,13 @@
 """
 Router pour les opérations CRUD sur les concours.
 Toutes les routes nécessitent une authentification.
+Utilise Supabase comme base de données.
 """
 
-import asyncio
 from fastapi import APIRouter, HTTPException, status, Depends, BackgroundTasks
+from datetime import datetime
 
-from backend.database import db
+from backend.supabase_client import supabase
 from backend.models import (
     ConcoursCreate,
     ConcoursListResponse,
@@ -14,7 +15,7 @@ from backend.models import (
     MessageResponse,
     StatusResponse,
 )
-from backend.routers.auth import require_auth
+from backend.middleware.supabase_auth import get_current_user
 from backend.services.scraper import scraper
 from backend.utils.logger import get_logger
 
@@ -23,8 +24,23 @@ logger = get_logger("api.concours")
 router = APIRouter(
     prefix="/concours",
     tags=["Concours"],
-    dependencies=[Depends(require_auth)],  # Authentification requise
+    dependencies=[Depends(get_current_user)],  # Authentification Supabase requise
 )
+
+
+def _format_concours_response(c: dict) -> dict:
+    """Formate un concours pour la réponse API."""
+    return {
+        "numero": c.get("numero"),
+        "nom": c.get("nom"),
+        "statut": c.get("statut", "ferme"),
+        "notifie": c.get("is_open", False),
+        "last_check": c.get("last_check"),
+        "created_at": c.get("created_at"),
+        "date_debut": c.get("date_debut"),
+        "date_fin": c.get("date_fin"),
+        "lieu": c.get("lieu"),
+    }
 
 
 @router.get("", response_model=ConcoursListResponse)
@@ -35,38 +51,38 @@ async def list_concours() -> ConcoursListResponse:
     Returns:
         Liste des concours avec leur statut actuel
     """
-    concours_list = await db.get_all_concours()
+    concours_list = await supabase.get_all_concours()
 
     return ConcoursListResponse(
-        concours=[ConcoursResponse(**c) for c in concours_list],
+        concours=[ConcoursResponse(**_format_concours_response(c)) for c in concours_list],
         total=len(concours_list),
     )
 
 
 async def _scrape_and_update_concours(numero: int) -> None:
     """Scrape les infos du concours et met à jour la base."""
-    from backend.models import StatutConcours
-
     try:
         info = await scraper.fetch_concours_info(numero)
-        if info.nom or info.lieu or info.date_debut:
-            await db.update_concours_info(
-                numero=numero,
-                nom=info.nom,
-                lieu=info.lieu,
-                date_debut=info.date_debut,
-                date_fin=info.date_fin,
-            )
+
+        update_data = {}
+        if info.nom:
+            update_data["nom"] = info.nom
+        if info.lieu:
+            update_data["lieu"] = info.lieu
+        if info.date_debut:
+            update_data["date_debut"] = info.date_debut
+        if info.date_fin:
+            update_data["date_fin"] = info.date_fin
+        if info.statut:
+            update_data["statut"] = info.statut
+            update_data["is_open"] = info.statut != "ferme"
+
+        update_data["last_check"] = datetime.now().isoformat()
+
+        if update_data:
+            await supabase.update_concours(numero, update_data)
             logger.info(f"Infos scrappées pour concours {numero}: {info.nom}")
 
-        # Mettre à jour le statut avec la valeur scrappée
-        if info.statut:
-            try:
-                statut = StatutConcours(info.statut)
-                await db.update_statut(numero, statut, notifie=False)
-                logger.info(f"Concours {numero}: statut = {info.statut}")
-            except ValueError:
-                logger.warning(f"Statut inconnu pour {numero}: {info.statut}")
     except Exception as e:
         logger.error(f"Erreur scraping concours {numero}: {e}")
 
@@ -75,6 +91,7 @@ async def _scrape_and_update_concours(numero: int) -> None:
 async def add_concours(
     data: ConcoursCreate,
     background_tasks: BackgroundTasks,
+    current_user = Depends(get_current_user),
 ) -> ConcoursResponse:
     """
     Ajoute un concours à surveiller.
@@ -88,19 +105,68 @@ async def add_concours(
     Raises:
         HTTPException 409: Si le concours est déjà surveillé
     """
-    concours = await db.add_concours(data.numero)
+    logger.info(f"=== ADD CONCOURS: Reçu numéro {data.numero} ===")
 
-    if concours is None:
+    # Vérifier si le concours existe déjà
+    existing = await supabase.get_concours(data.numero)
+    logger.info(f"Concours existant: {existing}")
+
+    user_id = current_user.id
+
+    if existing:
+        # Le concours existe - abonner l'utilisateur s'il ne l'est pas déjà
+        if user_id:
+            try:
+                await supabase.subscribe_to_concours(user_id, data.numero)
+                logger.info(f"Utilisateur {user_id} abonné au concours existant {data.numero}")
+            except Exception as e:
+                # Probablement déjà abonné (contrainte UNIQUE)
+                logger.debug(f"Abonnement déjà existant ou erreur: {e}")
+
+        return ConcoursResponse(**_format_concours_response(existing))
+
+    # Créer le concours (colonnes minimales)
+    concours_data = {
+        "numero": data.numero,
+        "statut": "ferme",
+        "is_open": False,
+    }
+
+    try:
+        logger.info(f"Appel upsert_concours avec: {concours_data}")
+        success = await supabase.upsert_concours(concours_data)
+        logger.info(f"Résultat upsert_concours: {success}")
+        if not success:
+            logger.error(f"Échec upsert_concours pour {data.numero} - retour False")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Erreur lors de la création du concours - vérifiez que la table 'concours' existe dans Supabase",
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Exception lors de upsert_concours pour {data.numero}: {e}", exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"Le concours {data.numero} est déjà surveillé",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erreur lors de la création du concours: {str(e)}",
         )
 
     # Scraper les infos du concours en arrière-plan
     background_tasks.add_task(_scrape_and_update_concours, data.numero)
 
+    # Abonner automatiquement l'utilisateur au concours
+    if user_id:
+        try:
+            await supabase.subscribe_to_concours(user_id, data.numero)
+            logger.info(f"Utilisateur {user_id} abonné au concours {data.numero}")
+        except Exception as e:
+            logger.warning(f"Impossible d'abonner l'utilisateur au concours: {e}")
+
+    # Récupérer le concours créé
+    concours = await supabase.get_concours(data.numero)
+
     logger.info(f"Concours {data.numero} ajouté à la surveillance")
-    return ConcoursResponse(**concours)
+    return ConcoursResponse(**_format_concours_response(concours))
 
 
 @router.get("/{numero}", response_model=ConcoursResponse)
@@ -117,7 +183,7 @@ async def get_concours(numero: int) -> ConcoursResponse:
     Raises:
         HTTPException 404: Si le concours n'est pas trouvé
     """
-    concours = await db.get_concours_by_numero(numero)
+    concours = await supabase.get_concours(numero)
 
     if concours is None:
         raise HTTPException(
@@ -125,7 +191,7 @@ async def get_concours(numero: int) -> ConcoursResponse:
             detail=f"Concours {numero} non trouvé",
         )
 
-    return ConcoursResponse(**concours)
+    return ConcoursResponse(**_format_concours_response(concours))
 
 
 @router.post("/{numero}/refresh", response_model=ConcoursResponse)
@@ -142,39 +208,21 @@ async def refresh_concours(numero: int) -> ConcoursResponse:
     Raises:
         HTTPException 404: Si le concours n'est pas trouvé
     """
-    concours = await db.get_concours_by_numero(numero)
+    concours = await supabase.get_concours(numero)
     if concours is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Concours {numero} non trouvé",
         )
 
-    from backend.models import StatutConcours
-
     # Scraper les infos
-    info = await scraper.fetch_concours_info(numero)
-    if info.nom or info.lieu or info.date_debut:
-        await db.update_concours_info(
-            numero=numero,
-            nom=info.nom,
-            lieu=info.lieu,
-            date_debut=info.date_debut,
-            date_fin=info.date_fin,
-        )
-
-    # Mettre à jour le statut avec la valeur scrappée
-    if info.statut:
-        try:
-            statut = StatutConcours(info.statut)
-            await db.update_statut(numero, statut, notifie=False)
-        except ValueError:
-            pass
+    await _scrape_and_update_concours(numero)
 
     # Récupérer le concours mis à jour
-        concours = await db.get_concours_by_numero(numero)
+    concours = await supabase.get_concours(numero)
 
     logger.info(f"Infos rafraîchies pour concours {numero}")
-    return ConcoursResponse(**concours)
+    return ConcoursResponse(**_format_concours_response(concours))
 
 
 @router.delete("/{numero}", response_model=MessageResponse)
@@ -191,12 +239,20 @@ async def delete_concours(numero: int) -> MessageResponse:
     Raises:
         HTTPException 404: Si le concours n'est pas trouvé
     """
-    deleted = await db.delete_concours(numero)
-
-    if not deleted:
+    # Vérifier que le concours existe
+    concours = await supabase.get_concours(numero)
+    if concours is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Concours {numero} non trouvé",
+        )
+
+    deleted = await supabase.delete_concours(numero)
+
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erreur lors de la suppression du concours {numero}",
         )
 
     return MessageResponse(
@@ -215,11 +271,11 @@ async def get_status() -> StatusResponse:
     """
     from backend.main import app_state
 
-    concours_list = await db.get_all_concours()
-    concours_ouverts = sum(1 for c in concours_list if c["statut"] != "ferme")
+    concours_list = await supabase.get_all_concours()
+    concours_ouverts = sum(1 for c in concours_list if c.get("statut") != "ferme")
 
     # Trouver la dernière vérification
-    last_checks = [c["last_check"] for c in concours_list if c["last_check"]]
+    last_checks = [c.get("last_check") for c in concours_list if c.get("last_check")]
     last_check = max(last_checks) if last_checks else None
 
     return StatusResponse(

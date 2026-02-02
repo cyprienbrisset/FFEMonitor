@@ -1,6 +1,7 @@
 """
 Service de surveillance des concours FFE.
 Boucle asynchrone de vérification et détection d'ouverture.
+Utilise Supabase comme base de données.
 """
 
 import asyncio
@@ -8,7 +9,7 @@ import time
 from datetime import datetime
 from typing import Optional
 
-from backend.database import Database
+from backend.supabase_client import supabase
 from backend.models import StatutConcours
 from backend.services.notification import NotificationDispatcher
 from backend.utils.logger import get_logger
@@ -24,52 +25,12 @@ class SurveillanceService:
     notifications lors de l'ouverture des engagements.
     """
 
-    # Sélecteurs pour détecter l'ouverture des concours
-    # Plusieurs variantes pour plus de robustesse
-    SELECTORS = {
-        "engager": [
-            "button:has-text('Engager')",
-            "a:has-text('Engager')",
-            ".btn-engager",
-            "[data-action='engager']",
-            "button.engagement",
-        ],
-        "demande": [
-            "button:has-text('Demande de participation')",
-            "a:has-text('Demande de participation')",
-            "button:has-text('Demande')",
-            ".btn-demande",
-            "[data-action='demande']",
-        ],
-        # Sélecteurs pour scraper les informations du concours
-        "date_debut": [
-            ".date-debut",
-            "[data-date-debut]",
-            ".concours-date-debut",
-            "span:has-text('Du') + span",
-        ],
-        "date_fin": [
-            ".date-fin",
-            "[data-date-fin]",
-            ".concours-date-fin",
-            "span:has-text('Au') + span",
-        ],
-        "lieu": [
-            ".lieu",
-            ".concours-lieu",
-            "[data-lieu]",
-            ".location",
-            "span:has-text('Lieu') + span",
-        ],
-    }
-
     # Nombre max de tentatives en cas d'erreur
     MAX_RETRIES = 3
     RETRY_DELAY = 5  # secondes
 
     def __init__(
         self,
-        database: Database,
         notifier: NotificationDispatcher,
         check_interval: int = 5,
     ):
@@ -77,11 +38,9 @@ class SurveillanceService:
         Initialise le service de surveillance.
 
         Args:
-            database: Instance de la base de données
             notifier: Dispatcher de notifications OneSignal
             check_interval: Intervalle entre les vérifications (secondes)
         """
-        self.db = database
         self.notifier = notifier
         self.check_interval = check_interval
 
@@ -135,11 +94,11 @@ class SurveillanceService:
         self._running = False
 
     async def _check_all_concours(self) -> None:
-        """Vérifie l'état de tous les concours non notifiés."""
+        """Vérifie l'état de tous les concours non ouverts."""
         from backend.services.scraper import scraper
 
-        # Récupérer les concours à surveiller
-        concours_list = await self.db.get_concours_non_notifies()
+        # Récupérer les concours à surveiller (non encore ouverts)
+        concours_list = await supabase.get_concours_non_notifies()
 
         if not concours_list:
             logger.debug("Aucun concours à surveiller")
@@ -154,123 +113,21 @@ class SurveillanceService:
             try:
                 await self._check_concours_scraper(concours, scraper)
             except Exception as e:
-                logger.error(f"Erreur vérification concours {concours['numero']}: {e}")
+                logger.error(f"Erreur vérification concours {concours.get('numero')}: {e}")
                 continue
 
             # Petite pause entre chaque concours pour éviter la surcharge
             await asyncio.sleep(1)
 
-    async def _check_concours(self, concours: dict) -> None:
-        """
-        Vérifie l'état d'un concours spécifique.
-
-        Args:
-            concours: Données du concours depuis la base
-        """
-        numero = concours["numero"]
-        statut_before = concours.get("statut", "ferme")
-        logger.debug(f"Vérification concours {numero}...")
-
-        start_time = time.time()
-        success = True
-        statut = None
-
-        # Utiliser le rate limiter pour éviter de surcharger FFE
-        async with rate_limiter:
-            # Naviguer vers la page du concours avec retry
-            try:
-                page = await retry_async(
-                    self.auth.navigate_to_concours,
-                    numero,
-                    max_attempts=2,
-                    base_delay=3.0,
-                    exceptions=(Exception,),
-                )
-            except RetryError as e:
-                logger.error(f"Impossible d'accéder au concours {numero}: {e}")
-                success = False
-                # Enregistrer l'échec dans l'historique
-                response_time_ms = int((time.time() - start_time) * 1000)
-                await self.db.record_check(
-                    concours_numero=numero,
-                    statut_before=statut_before,
-                    statut_after=None,
-                    response_time_ms=response_time_ms,
-                    success=False,
-                )
-                return
-
-            # Détecter l'ouverture
-            statut = await self._detect_opening(page)
-
-            # Scraper les informations de date/lieu si pas encore enregistrées
-            if not concours.get("date_debut"):
-                await self._scrape_concours_info(numero, page)
-
-        # Calculer le temps de réponse
-        response_time_ms = int((time.time() - start_time) * 1000)
-
-        # Déterminer le statut après vérification
-        statut_after = statut.value if statut else "ferme"
-
-        # Enregistrer dans l'historique
-        await self.db.record_check(
-            concours_numero=numero,
-            statut_before=statut_before,
-            statut_after=statut_after,
-            response_time_ms=response_time_ms,
-            success=True,
-        )
-
-        # Mettre à jour le timestamp de dernière vérification
-        await self.db.update_last_check(numero)
-
-        # Si un bouton a été détecté
-        if statut and statut != StatutConcours.FERME:
-            logger.info(f"Concours {numero} OUVERT ({statut.value})")
-
-            # Envoyer la notification avec retry
-            notification_sent_at = None
-            try:
-                notif_sent = await retry_async(
-                    self.notifier.send_notification,
-                    numero,
-                    statut,
-                    concours.get("nom"),
-                    concours.get("lieu"),
-                    concours.get("date_debut"),
-                    concours.get("date_fin"),
-                    max_attempts=3,
-                    base_delay=1.0,
-                )
-                if notif_sent:
-                    notification_sent_at = datetime.now().isoformat()
-            except RetryError:
-                notif_sent = False
-                logger.error(f"Échec notification pour concours {numero}")
-
-            # Enregistrer l'événement d'ouverture
-            await self.db.record_opening(
-                concours_numero=numero,
-                statut=statut.value,
-                notification_sent_at=notification_sent_at,
-            )
-
-            # Mettre à jour le statut en base
-            await self.db.update_statut(numero, statut, notifie=notif_sent)
-
-        else:
-            logger.debug(f"Concours {numero}: fermé")
-
     async def _check_concours_scraper(self, concours: dict, scraper) -> None:
         """
-        Vérifie l'état d'un concours via le scraper HTTP (sans Playwright).
+        Vérifie l'état d'un concours via le scraper HTTP.
 
         Args:
-            concours: Données du concours depuis la base
+            concours: Données du concours depuis Supabase
             scraper: Instance du scraper FFE
         """
-        numero = concours["numero"]
+        numero = concours.get("numero")
         statut_before = concours.get("statut", "previsionnel")
         logger.debug(f"Vérification concours {numero} (scraper)...")
 
@@ -286,7 +143,7 @@ class SurveillanceService:
         statut_after = info.statut or "previsionnel"
 
         # Enregistrer dans l'historique
-        await self.db.record_check(
+        await supabase.record_check(
             concours_numero=numero,
             statut_before=statut_before,
             statut_after=statut_after,
@@ -295,22 +152,23 @@ class SurveillanceService:
         )
 
         # Mettre à jour les infos du concours
-        if info.nom or info.lieu or info.date_debut:
-            await self.db.update_concours_info(
-                numero=numero,
-                nom=info.nom,
-                lieu=info.lieu,
-                date_debut=info.date_debut,
-                date_fin=info.date_fin,
-            )
+        update_data = {"last_check": datetime.now().isoformat()}
 
-        # Mettre à jour le timestamp
-        await self.db.update_last_check(numero)
+        if info.nom:
+            update_data["nom"] = info.nom
+        if info.lieu:
+            update_data["lieu"] = info.lieu
+        if info.date_debut:
+            update_data["date_debut"] = info.date_debut
+        if info.date_fin:
+            update_data["date_fin"] = info.date_fin
+
+        await supabase.update_concours(numero, update_data)
 
         # Si le concours vient d'ouvrir (statut change vers engagement/demande)
         if info.is_open and statut_before not in ("engagement", "demande"):
-            statut = StatutConcours.ENGAGEMENT if info.statut == "engagement" else StatutConcours.DEMANDE
-            logger.info(f"Concours {numero} OUVERT ({statut.value})")
+            statut = "engagement" if info.statut == "engagement" else "demande"
+            logger.info(f"Concours {numero} OUVERT ({statut})")
 
             # Planifier les notifications pour tous les abonnés
             opened_at = datetime.now()
@@ -324,146 +182,22 @@ class SurveillanceService:
                 logger.error(f"Échec planification notifications pour concours {numero}: {e}")
 
             # Enregistrer l'événement d'ouverture
-            await self.db.record_opening(
+            await supabase.record_opening(
                 concours_numero=numero,
-                statut=statut.value,
+                statut=statut,
                 notification_sent_at=opened_at.isoformat(),
             )
 
             # Mettre à jour le statut en base
-            await self.db.update_statut(numero, statut, notifie=True)
+            await supabase.update_concours_status(numero, is_open=True, statut=statut)
+
         elif info.statut and info.statut != statut_before:
             # Mettre à jour le statut même si pas d'ouverture
-            try:
-                statut = StatutConcours(info.statut)
-                await self.db.update_statut(numero, statut, notifie=False)
-            except ValueError:
-                pass
+            is_open = info.statut in ("engagement", "demande")
+            await supabase.update_concours_status(numero, is_open=is_open, statut=info.statut)
+
         else:
             logger.debug(f"Concours {numero}: {info.statut}")
-
-    async def _detect_opening(self, page) -> Optional[StatutConcours]:
-        """
-        Détecte l'ouverture d'un concours via les boutons DOM ou le texte.
-
-        Args:
-            page: Page Playwright du concours
-
-        Returns:
-            StatutConcours si ouvert, None si fermé
-        """
-        # Vérifier le bouton "Engager" (concours amateur)
-        for selector in self.SELECTORS["engager"]:
-            try:
-                count = await page.locator(selector).count()
-                if count > 0:
-                    logger.debug(f"Bouton 'Engager' détecté avec: {selector}")
-                    return StatutConcours.ENGAGEMENT
-            except Exception:
-                continue
-
-        # Vérifier le bouton "Demande de participation" (concours international)
-        for selector in self.SELECTORS["demande"]:
-            try:
-                count = await page.locator(selector).count()
-                if count > 0:
-                    logger.debug(f"Bouton 'Demande' détecté avec: {selector}")
-                    return StatutConcours.DEMANDE
-            except Exception:
-                continue
-
-        # Fallback: vérifier le texte "Ouvert aux engagements" dans la page
-        try:
-            page_content = await page.content()
-            import re
-            if re.search(r'[Oo]uvert(?:e)?(?:s)?\s+aux\s+engagements', page_content, re.IGNORECASE):
-                logger.debug("Texte 'Ouvert aux engagements' détecté")
-                return StatutConcours.ENGAGEMENT
-        except Exception:
-            pass
-
-        return None
-
-    async def _scrape_concours_info(self, numero: int, page) -> None:
-        """
-        Scrape les informations depuis la page du concours.
-        Utilise d'abord le scraper httpx léger, puis Playwright en fallback.
-
-        Args:
-            numero: Numéro du concours
-            page: Page Playwright du concours
-        """
-        from backend.services.scraper import scraper
-
-        # Utiliser le scraper httpx (plus fiable pour le parsing)
-        try:
-            info = await scraper.fetch_concours_info(numero)
-            if info.nom or info.lieu or info.date_debut:
-                await self.db.update_concours_info(
-                    numero=numero,
-                    nom=info.nom,
-                    lieu=info.lieu,
-                    date_debut=info.date_debut,
-                    date_fin=info.date_fin,
-                )
-                logger.debug(
-                    f"Infos concours {numero}: {info.nom}, "
-                    f"{info.date_debut} - {info.date_fin}, {info.lieu}"
-                )
-                return
-        except Exception as e:
-            logger.debug(f"Scraper httpx échoué pour {numero}: {e}")
-
-        # Fallback: essayer avec Playwright
-        date_debut = None
-        date_fin = None
-        lieu = None
-
-        # Essayer de récupérer la date de début
-        for selector in self.SELECTORS["date_debut"]:
-            try:
-                element = page.locator(selector).first
-                if await element.count() > 0:
-                    text = await element.text_content()
-                    if text:
-                        date_debut = self._parse_date(text.strip())
-                        break
-            except Exception:
-                continue
-
-        # Essayer de récupérer la date de fin
-        for selector in self.SELECTORS["date_fin"]:
-            try:
-                element = page.locator(selector).first
-                if await element.count() > 0:
-                    text = await element.text_content()
-                    if text:
-                        date_fin = self._parse_date(text.strip())
-                        break
-            except Exception:
-                continue
-
-        # Essayer de récupérer le lieu
-        for selector in self.SELECTORS["lieu"]:
-            try:
-                element = page.locator(selector).first
-                if await element.count() > 0:
-                    text = await element.text_content()
-                    if text:
-                        lieu = text.strip()
-                        break
-            except Exception:
-                continue
-
-        # Mettre à jour en base si on a trouvé des informations
-        if date_debut or date_fin or lieu:
-            await self.db.update_concours_info(
-                numero=numero,
-                date_debut=date_debut,
-                date_fin=date_fin,
-                lieu=lieu,
-            )
-            logger.debug(f"Infos concours {numero} (Playwright): {date_debut} - {date_fin}, {lieu}")
 
     def _parse_date(self, date_str: str) -> Optional[str]:
         """
@@ -496,17 +230,3 @@ class SurveillanceService:
                     continue
 
         return None
-
-    async def check_single_concours(self, numero: int) -> StatutConcours:
-        """
-        Vérifie l'état d'un seul concours (pour tests).
-
-        Args:
-            numero: Numéro du concours
-
-        Returns:
-            Statut du concours
-        """
-        page = await self.auth.navigate_to_concours(numero)
-        statut = await self._detect_opening(page)
-        return statut or StatutConcours.FERME

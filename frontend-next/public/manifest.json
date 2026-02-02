@@ -1,0 +1,134 @@
+{
+    "name": "FFE Monitor",
+    "short_name": "FFE Monitor",
+    "description": "Surveillance des concours FFE - Recevez des notifications dès l'ouverture des engagements",
+    "start_url": "/app",
+    "id": "/app",
+    "display": "standalone",
+    "display_override": ["window-controls-overlay", "standalone", "browser"],
+    "background_color": "#FAF7F2",
+    "theme_color": "#FAF7F2",
+    "orientation": "any",
+    "scope": "/",
+    "lang": "fr",
+    "dir": "ltr",
+    "categories": ["sports", "utilities", "lifestyle"],
+    "icons": [
+        {
+            "src": "/icons/icon-72.png",
+            "sizes": "72x72",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "/icons/icon-96.png",
+            "sizes": "96x96",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "/icons/icon-128.png",
+            "sizes": "128x128",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "/icons/icon-144.png",
+            "sizes": "144x144",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "/icons/icon-152.png",
+            "sizes": "152x152",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "/icons/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "/icons/icon-384.png",
+            "sizes": "384x384",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "/icons/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "/icons/icon-maskable-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "maskable"
+        },
+        {
+            "src": "/icons/icon-maskable-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        },
+        {
+            "src": "/logo.svg",
+            "sizes": "any",
+            "type": "image/svg+xml",
+            "purpose": "any"
+        }
+    ],
+    "shortcuts": [
+        {
+            "name": "Ajouter un concours",
+            "short_name": "Ajouter",
+            "description": "Ajouter un nouveau concours à surveiller",
+            "url": "/app?action=add",
+            "icons": [
+                {
+                    "src": "/icons/shortcut-add.png",
+                    "sizes": "96x96",
+                    "type": "image/png"
+                }
+            ]
+        },
+        {
+            "name": "Voir le calendrier",
+            "short_name": "Calendrier",
+            "description": "Voir le calendrier des concours",
+            "url": "/app?view=calendar",
+            "icons": [
+                {
+                    "src": "/icons/shortcut-calendar.png",
+                    "sizes": "96x96",
+                    "type": "image/png"
+                }
+            ]
+        }
+    ],
+    "screenshots": [
+        {
+            "src": "/screenshots/desktop.png",
+            "sizes": "1280x720",
+            "type": "image/png",
+            "form_factor": "wide",
+            "label": "FFE Monitor - Dashboard"
+        },
+        {
+            "src": "/screenshots/mobile.png",
+            "sizes": "390x844",
+            "type": "image/png",
+            "form_factor": "narrow",
+            "label": "FFE Monitor - Mobile"
+        }
+    ],
+    "related_applications": [],
+    "prefer_related_applications": false,
+    "handle_links": "preferred",
+    "launch_handler": {
+        "client_mode": "focus-existing"
+    }
+}

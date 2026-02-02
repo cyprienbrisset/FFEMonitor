@@ -1,6 +1,6 @@
 """
 Service de notification pour FFE Monitor.
-Utilise exclusivement OneSignal pour les push notifications.
+Utilise OneSignal pour les push notifications et les emails.
 """
 
 import asyncio

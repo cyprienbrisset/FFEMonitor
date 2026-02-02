@@ -1,0 +1,101 @@
+import type { Metadata, Viewport } from 'next'
+import { DM_Serif_Display, DM_Sans } from 'next/font/google'
+import Script from 'next/script'
+import { ServiceWorkerRegistration } from '@/components/ServiceWorkerRegistration'
+import { Providers } from '@/components/Providers'
+import './globals.css'
+
+const dmSerifDisplay = DM_Serif_Display({
+  subsets: ['latin'],
+  weight: '400',
+  variable: '--font-display',
+  display: 'swap',
+})
+
+const dmSans = DM_Sans({
+  subsets: ['latin'],
+  variable: '--font-body',
+  display: 'swap',
+})
+
+export const metadata: Metadata = {
+  title: 'FFE Monitor',
+  description: 'Surveillance des concours FFE - Recevez des notifications dès l\'ouverture des engagements',
+  manifest: '/manifest.json',
+  icons: {
+    icon: [
+      { url: '/logo.svg', type: 'image/svg+xml' },
+      { url: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: [
+      { url: '/icons/icon-152.png', sizes: '152x152' },
+      { url: '/icons/icon-192.png', sizes: '192x192' },
+    ],
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'FFE Monitor',
+  },
+  formatDetection: {
+    telephone: false,
+  },
+  openGraph: {
+    title: 'FFE Monitor',
+    description: 'Surveillance des concours FFE - Recevez des notifications dès l\'ouverture des engagements',
+    url: 'https://ffemonitor.fr',
+    siteName: 'FFE Monitor',
+    locale: 'fr_FR',
+    type: 'website',
+  },
+}
+
+export const viewport: Viewport = {
+  themeColor: '#FAF7F2',
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: 'cover',
+}
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  const oneSignalAppId = process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID
+
+  return (
+    <html lang="fr" className={`${dmSerifDisplay.variable} ${dmSans.variable}`}>
+      <head>
+        <Script
+          src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js"
+          strategy="afterInteractive"
+        />
+        {oneSignalAppId && (
+          <Script id="onesignal-init" strategy="afterInteractive">
+            {`
+              window.OneSignalDeferred = window.OneSignalDeferred || [];
+              OneSignalDeferred.push(async function(OneSignal) {
+                await OneSignal.init({
+                  appId: "${oneSignalAppId}",
+                  serviceWorkerParam: { scope: "/" },
+                  serviceWorkerPath: "/sw.js",
+                  allowLocalhostAsSecureOrigin: true,
+                });
+              });
+            `}
+          </Script>
+        )}
+      </head>
+      <body>
+        <Providers>
+          <ServiceWorkerRegistration />
+          {children}
+        </Providers>
+      </body>
+    </html>
+  )
+}

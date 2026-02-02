@@ -663,6 +663,8 @@ class Database:
         }
 
         # Ajouter les champs optionnels s'ils existent
+        if "nom" in row.keys():
+            result["nom"] = row["nom"]
         if "date_debut" in row.keys():
             result["date_debut"] = row["date_debut"]
         if "date_fin" in row.keys():
