@@ -104,6 +104,9 @@
                     <button class="btn-test" id="testEmail" title="Tester Email">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
                     </button>
+                    <button class="btn-test" id="testWhatsapp" title="Tester WhatsApp">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                    </button>
                 </div>
             </section>
 
@@ -332,12 +335,16 @@
         let calendarYear = new Date().getFullYear();
         let calendarEvents = [];
 
+        // Store concours list for date conflict detection
+        let currentConcoursList = [];
+
         function initApp() {
             document.getElementById('addForm').addEventListener('submit', handleAddConcours);
             document.getElementById('logoutButton').addEventListener('click', logout);
             document.getElementById('themeToggle').addEventListener('click', () => ThemeManager.toggle());
             document.getElementById('testTelegram').addEventListener('click', () => testNotification('telegram'));
             document.getElementById('testEmail').addEventListener('click', () => testNotification('email'));
+            document.getElementById('testWhatsapp').addEventListener('click', () => testNotification('whatsapp'));
 
             // Initialize chart period toggle buttons
             document.querySelectorAll('.period-btn').forEach(btn => {
@@ -391,7 +398,8 @@
         }
 
         async function testNotification(type) {
-            const btn = document.getElementById(type === 'telegram' ? 'testTelegram' : 'testEmail');
+            const btnIds = { telegram: 'testTelegram', email: 'testEmail', whatsapp: 'testWhatsapp' };
+            const btn = document.getElementById(btnIds[type]);
             btn.disabled = true;
             btn.classList.add('loading');
 
@@ -442,6 +450,7 @@
                 if (!response.ok) throw new Error('Erreur chargement');
 
                 const data = await response.json();
+                currentConcoursList = data.concours; // Store for date conflict detection
                 renderConcoursList(data.concours);
                 updateCount(data.total);
             } catch (error) {
@@ -765,9 +774,13 @@
                 });
 
                 if (response.status === 201) {
+                    const newConcours = await response.json();
                     showMessage(`Concours ${numero} ajouté à la surveillance`, 'success');
                     input.value = '';
-                    loadConcours();
+
+                    // Check for date conflicts with existing concours
+                    await loadConcours();
+                    checkDateConflicts(newConcours);
                 } else if (response.status === 409) {
                     showMessage(`Le concours ${numero} est déjà surveillé`, 'error');
                 } else {
@@ -781,6 +794,80 @@
                 button.disabled = false;
                 btnText.textContent = 'Surveiller';
             }
+        }
+
+        function checkDateConflicts(newConcours) {
+            if (!newConcours.date_debut) return;
+
+            const newStart = new Date(newConcours.date_debut);
+            const newEnd = newConcours.date_fin ? new Date(newConcours.date_fin) : newStart;
+
+            const conflicts = currentConcoursList.filter(c => {
+                if (c.numero === newConcours.numero || !c.date_debut) return false;
+
+                const existingStart = new Date(c.date_debut);
+                const existingEnd = c.date_fin ? new Date(c.date_fin) : existingStart;
+
+                // Check if dates overlap
+                return (newStart <= existingEnd && newEnd >= existingStart);
+            });
+
+            if (conflicts.length > 0) {
+                const conflictNames = conflicts.map(c => c.nom || `#${c.numero}`).join(', ');
+                showDateConflictAlert(newConcours, conflicts);
+            }
+        }
+
+        function showDateConflictAlert(newConcours, conflicts) {
+            const newName = newConcours.nom || `#${newConcours.numero}`;
+            const newDates = formatDateRange(newConcours.date_debut, newConcours.date_fin);
+
+            let message = `⚠️ Attention : "${newName}" (${newDates}) se chevauche avec :\n\n`;
+            conflicts.forEach(c => {
+                const name = c.nom || `#${c.numero}`;
+                const dates = formatDateRange(c.date_debut, c.date_fin);
+                message += `• ${name} (${dates})\n`;
+            });
+
+            // Show alert modal
+            showConflictModal(message);
+        }
+
+        function formatDateRange(start, end) {
+            if (!start) return '';
+            const options = { day: 'numeric', month: 'short' };
+            const startDate = new Date(start).toLocaleDateString('fr-FR', options);
+            if (!end || start === end) return startDate;
+            const endDate = new Date(end).toLocaleDateString('fr-FR', options);
+            return `${startDate} → ${endDate}`;
+        }
+
+        function showConflictModal(message) {
+            // Create modal overlay
+            const overlay = document.createElement('div');
+            overlay.className = 'conflict-modal-overlay';
+            overlay.innerHTML = `
+                <div class="conflict-modal">
+                    <div class="conflict-modal-header">
+                        <span class="conflict-icon">⚠️</span>
+                        <h3>Conflit de dates détecté</h3>
+                    </div>
+                    <div class="conflict-modal-body">
+                        <pre>${message}</pre>
+                    </div>
+                    <div class="conflict-modal-footer">
+                        <button class="btn-confirm" onclick="this.closest('.conflict-modal-overlay').remove()">
+                            Compris
+                        </button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+
+            // Close on overlay click
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) overlay.remove();
+            });
         }
 
         async function deleteConcours(numero) {

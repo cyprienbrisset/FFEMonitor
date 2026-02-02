@@ -707,11 +707,213 @@ class ResendNotifier:
             self._client = None
 
 
+class WhatsAppNotifier:
+    """
+    Gestionnaire de notifications WhatsApp via Whapi.cloud.
+
+    Envoie des messages WhatsApp via l'API Whapi.
+    """
+
+    WHAPI_API_URL = "https://gate.whapi.cloud/messages/text"
+
+    def __init__(self, api_key: str, to_number: str):
+        """
+        Initialise le notifier WhatsApp.
+
+        Args:
+            api_key: Clé API Whapi.cloud
+            to_number: Numéro destinataire (format international sans +)
+        """
+        self.api_key = api_key
+        self.to_number = to_number
+        self._client: Optional[httpx.AsyncClient] = None
+
+    async def _get_client(self) -> httpx.AsyncClient:
+        """Retourne le client HTTP, le crée si nécessaire."""
+        if self._client is None:
+            self._client = httpx.AsyncClient(timeout=10.0)
+        return self._client
+
+    async def _send_message(self, text: str) -> bool:
+        """
+        Envoie un message WhatsApp via l'API Whapi.
+
+        Args:
+            text: Texte du message
+
+        Returns:
+            True si envoi réussi, False sinon
+        """
+        try:
+            client = await self._get_client()
+
+            response = await client.post(
+                self.WHAPI_API_URL,
+                headers={
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "to": self.to_number,
+                    "body": text,
+                },
+            )
+
+            if response.status_code == 200 or response.status_code == 201:
+                logger.info(f"Message WhatsApp envoyé avec succès à {self.to_number}")
+                return True
+            else:
+                logger.error(
+                    f"Erreur Whapi ({response.status_code}): {response.text}"
+                )
+                return False
+
+        except Exception as e:
+            logger.error(f"Erreur envoi WhatsApp: {e}")
+            return False
+
+    def _format_date(self, date_str: str) -> str:
+        """Formate une date ISO en format lisible."""
+        if not date_str:
+            return ""
+        try:
+            from datetime import datetime
+            date = datetime.strptime(date_str, "%Y-%m-%d")
+            mois = ["jan", "fév", "mar", "avr", "mai", "jun", "jul", "aoû", "sep", "oct", "nov", "déc"]
+            return f"{date.day} {mois[date.month - 1]}"
+        except Exception:
+            return date_str
+
+    async def send_notification(
+        self,
+        numero: int,
+        statut: StatutConcours,
+        nom: str | None = None,
+        lieu: str | None = None,
+        date_debut: str | None = None,
+        date_fin: str | None = None,
+    ) -> bool:
+        """
+        Envoie une notification d'ouverture de concours par WhatsApp.
+
+        Args:
+            numero: Numéro du concours
+            statut: Type d'ouverture (engagement ou demande)
+            nom: Nom du concours
+            lieu: Lieu du concours
+            date_debut: Date de début
+            date_fin: Date de fin
+
+        Returns:
+            True si envoi réussi, False sinon
+        """
+        # Déterminer l'emoji et le type
+        if statut == StatutConcours.ENGAGEMENT:
+            emoji = "🟢"
+            type_ouverture = "Engagement ouvert"
+        else:
+            emoji = "🔵"
+            type_ouverture = "Demandes ouvertes"
+
+        url = f"{settings.ffe_concours_url}/{numero}"
+        titre = nom if nom else f"Concours #{numero}"
+
+        # Formater les dates
+        dates_str = ""
+        if date_debut and date_fin and date_debut != date_fin:
+            dates_str = f"📅 {self._format_date(date_debut)} → {self._format_date(date_fin)}"
+        elif date_debut:
+            dates_str = f"📅 {self._format_date(date_debut)}"
+
+        lines = [
+            f"{emoji} *{type_ouverture.upper()}*",
+            "",
+            f"*{titre}*",
+        ]
+        if lieu:
+            lines.append(f"📍 {lieu}")
+        if dates_str:
+            lines.append(dates_str)
+        lines.extend([
+            "",
+            f"🔗 {url}",
+            "",
+            f"_🐴 FFE Monitor • #{numero}_"
+        ])
+
+        message = "\n".join(lines)
+
+        result = await self._send_message(message)
+        if result:
+            logger.info(f"Notification WhatsApp envoyée pour concours {numero}")
+        return result
+
+    async def send_startup_message(self) -> bool:
+        """
+        Envoie un message de démarrage par WhatsApp.
+
+        Returns:
+            True si envoi réussi, False sinon
+        """
+        message = """🐴 *FFE Monitor*
+
+━━━━━━━━━━━━━━━━━━
+
+✅ Surveillance active
+
+Vous recevrez une notification dès qu'un concours s'ouvrira aux engagements."""
+
+        return await self._send_message(message)
+
+    async def send_error_message(self, error: str) -> bool:
+        """
+        Envoie un message d'erreur par WhatsApp.
+
+        Args:
+            error: Description de l'erreur
+
+        Returns:
+            True si envoi réussi, False sinon
+        """
+        message = f"""🐴 *FFE Monitor*
+
+━━━━━━━━━━━━━━━━━━
+
+⚠️ *Erreur*
+
+{error}"""
+
+        return await self._send_message(message)
+
+    async def send_test(self) -> bool:
+        """
+        Envoie un message de test par WhatsApp.
+
+        Returns:
+            True si envoi réussi, False sinon
+        """
+        message = """🐴 *FFE Monitor*
+
+━━━━━━━━━━━━━━━━━━
+
+🧪 *Test réussi !*
+
+Les notifications WhatsApp fonctionnent correctement."""
+
+        return await self._send_message(message)
+
+    async def close(self) -> None:
+        """Ferme le client HTTP."""
+        if self._client:
+            await self._client.aclose()
+            self._client = None
+
+
 class MultiNotifier:
     """
     Gestionnaire multi-canal de notifications.
 
-    Envoie les notifications via tous les canaux configurés (Telegram, Email).
+    Envoie les notifications via tous les canaux configurés (Telegram, Email, WhatsApp).
     """
 
     def __init__(self):
@@ -738,6 +940,18 @@ class MultiNotifier:
             logger.info("Notifier Email (Resend) initialisé")
         else:
             logger.info("Notifier Email désactivé (non configuré)")
+
+        # Ajouter WhatsApp via Whapi.cloud si configuré
+        self.whatsapp: Optional[WhatsAppNotifier] = None
+        if settings.whatsapp_configured:
+            self.whatsapp = WhatsAppNotifier(
+                api_key=settings.whapi_api_key,
+                to_number=settings.whatsapp_to,
+            )
+            self.notifiers.append(self.whatsapp)
+            logger.info("Notifier WhatsApp (Whapi) initialisé")
+        else:
+            logger.info("Notifier WhatsApp désactivé (non configuré)")
 
     async def send_notification(
         self,

@@ -35,8 +35,13 @@ class Settings(BaseSettings):
     # Email via Resend (optionnel)
     email_enabled: bool = False
     resend_api_key: Optional[str] = None
-    email_from: str = "EngageWatch <onboarding@resend.dev>"
+    email_from: str = "FFE Monitor <onboarding@resend.dev>"
     email_to: Optional[str] = None
+
+    # WhatsApp via Whapi.cloud (optionnel)
+    whatsapp_enabled: bool = False
+    whapi_api_key: Optional[str] = None
+    whatsapp_to: Optional[str] = None  # Numéro au format international sans + (ex: 33612345678)
 
     # Application
     check_interval: int = 5  # secondes
@@ -68,6 +73,15 @@ class Settings(BaseSettings):
             self.email_enabled
             and self.resend_api_key is not None
             and self.email_to is not None
+        )
+
+    @property
+    def whatsapp_configured(self) -> bool:
+        """Vérifie si WhatsApp via Whapi.cloud est correctement configuré."""
+        return (
+            self.whatsapp_enabled
+            and self.whapi_api_key is not None
+            and self.whatsapp_to is not None
         )
 
 

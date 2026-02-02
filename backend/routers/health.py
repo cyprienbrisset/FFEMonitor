@@ -83,3 +83,34 @@ async def test_telegram_notification() -> MessageResponse:
             return MessageResponse(message="Échec de l'envoi Telegram", success=False)
     except Exception as e:
         return MessageResponse(message=f"Erreur: {str(e)}", success=False)
+
+
+@router.post("/test-whatsapp", response_model=MessageResponse, dependencies=[Depends(require_auth)])
+async def test_whatsapp_notification() -> MessageResponse:
+    """
+    Envoie un message WhatsApp de test via Whapi.cloud.
+
+    Returns:
+        MessageResponse avec le résultat
+    """
+    from backend.main import app_state
+    from backend.config import settings
+
+    notifier = app_state.get("notifier")
+    if not notifier:
+        return MessageResponse(message="Notifier non initialisé", success=False)
+
+    if not settings.whatsapp_configured:
+        return MessageResponse(
+            message="WhatsApp non configuré (WHAPI_API_KEY, WHATSAPP_TO manquants)",
+            success=False
+        )
+
+    try:
+        success = await notifier.whatsapp.send_test()
+        if success:
+            return MessageResponse(message=f"Message WhatsApp de test envoyé à {settings.whatsapp_to}", success=True)
+        else:
+            return MessageResponse(message="Échec de l'envoi WhatsApp", success=False)
+    except Exception as e:
+        return MessageResponse(message=f"Erreur: {str(e)}", success=False)
