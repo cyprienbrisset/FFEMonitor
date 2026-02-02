@@ -2143,8 +2143,9 @@ body {
 
 .calendar-layout {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 2fr 1fr;
     gap: 24px;
+    min-height: 380px;
 }
 
 @media (max-width: 900px) {

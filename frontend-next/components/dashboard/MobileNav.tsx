@@ -125,7 +125,7 @@ export function MobileNav({ onAddConcours, onOpenCalendar, onOpenProfile }: Mobi
     const endAngle = 270 // End at top
     const angleStep = (endAngle - startAngle) / (total - 1)
     const angle = startAngle + angleStep * index
-    const radius = 85 // Distance from center
+    const radius = 110 // Distance from center - increased for better spacing
 
     const x = Math.cos((angle * Math.PI) / 180) * radius
     const y = Math.sin((angle * Math.PI) / 180) * radius

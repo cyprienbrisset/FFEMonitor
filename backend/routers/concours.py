@@ -75,7 +75,8 @@ async def _scrape_and_update_concours(numero: int) -> None:
             update_data["date_fin"] = info.date_fin
         if info.statut:
             update_data["statut"] = info.statut
-            update_data["is_open"] = info.statut != "ferme"
+        # IMPORTANT: Utiliser is_open du scraper, pas calculé depuis statut
+        update_data["is_open"] = info.is_open
 
         update_data["last_check"] = datetime.now().isoformat()
 
