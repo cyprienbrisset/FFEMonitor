@@ -1,55 +1,70 @@
 # ============================================
-# EngageWatch - Docker Compose
+# FFE Monitor - Docker Compose
+# Déploiement simple et rapide
+# ============================================
+#
+# Usage:
+#   1. Copier .env.example vers .env et remplir les valeurs
+#   2. docker-compose up -d
+#   3. Ouvrir http://localhost:8000
+#
 # ============================================
 
 services:
-  engagewatch:
+  ffemonitor:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: engagewatch
+    container_name: ffemonitor
     restart: unless-stopped
+
+    # Port
     ports:
       - "8000:8000"
+
+    # Volumes persistants
     volumes:
-      # Persistance de la base de données et des cookies
-      - engagewatch_data:/app/data
+      - ffemonitor_data:/app/data
+
+    # Variables d'environnement
     environment:
-      # Identifiants FFE (OBLIGATOIRE)
-      - FFE_USERNAME=${FFE_USERNAME}
-      - FFE_PASSWORD=${FFE_PASSWORD}
+      # ===== SUPABASE (obligatoire) =====
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+      - SUPABASE_JWT_SECRET=${SUPABASE_JWT_SECRET}
 
-      # Telegram (OBLIGATOIRE pour les notifications)
-      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
-      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+      # ===== ONESIGNAL (obligatoire) =====
+      - ONESIGNAL_APP_ID=${ONESIGNAL_APP_ID}
+      - ONESIGNAL_API_KEY=${ONESIGNAL_API_KEY}
 
-      # Email (OPTIONNEL)
-      - EMAIL_ENABLED=${EMAIL_ENABLED:-false}
-      - EMAIL_SMTP_HOST=${EMAIL_SMTP_HOST:-smtp.gmail.com}
-      - EMAIL_SMTP_PORT=${EMAIL_SMTP_PORT:-587}
-      - EMAIL_SMTP_USE_TLS=${EMAIL_SMTP_USE_TLS:-true}
-      - EMAIL_SMTP_USERNAME=${EMAIL_SMTP_USERNAME:-}
-      - EMAIL_SMTP_PASSWORD=${EMAIL_SMTP_PASSWORD:-}
-      - EMAIL_FROM=${EMAIL_FROM:-}
-      - EMAIL_TO=${EMAIL_TO:-}
+      # ===== DÉLAIS PAR PLAN (secondes) =====
+      - DELAY_FREE=${DELAY_FREE:-600}
+      - DELAY_PREMIUM=${DELAY_PREMIUM:-60}
+      - DELAY_PRO=${DELAY_PRO:-10}
 
-      # Authentification interface web
-      - AUTH_USERNAME=${AUTH_USERNAME:-admin}
-      - AUTH_PASSWORD=${AUTH_PASSWORD:-changeme}
-      - AUTH_SECRET_KEY=${AUTH_SECRET_KEY:-change-this-secret-key-in-production}
-
-      # Configuration application
+      # ===== APPLICATION =====
       - CHECK_INTERVAL=${CHECK_INTERVAL:-5}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
-      - DATABASE_PATH=/app/data/engagewatch.db
+      - DATABASE_PATH=/app/data/ffemonitor.db
       - COOKIES_PATH=/app/data/cookies.json
+
+    # Health check
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
+      start_period: 40s
 
+    # Logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+# Volumes nommés
 volumes:
-  engagewatch_data:
+  ffemonitor_data:
     driver: local

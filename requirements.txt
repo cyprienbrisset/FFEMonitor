@@ -1,4 +1,4 @@
-# EngageWatch - Dependencies
+# FFE Monitor - Dependencies
 # Python 3.10+ required
 
 # Web framework
@@ -8,12 +8,17 @@ uvicorn[standard]>=0.27.0
 # Browser automation
 playwright>=1.41.0
 
-# Database
+# Database (legacy SQLite)
 aiosqlite>=0.19.0
+
+# Supabase (auth + database)
+supabase>=2.3.0
 
 # Notifications
 python-telegram-bot>=20.7
 # Email via Resend (uses httpx)
+# WhatsApp via Whapi.cloud (uses httpx)
+# Push via OneSignal (uses httpx)
 
 # Configuration
 python-dotenv>=1.0.0
@@ -23,8 +28,9 @@ pydantic-settings>=2.1.0
 # Authentication
 python-jose[cryptography]>=3.3.0
 passlib[bcrypt]>=1.7.4
+PyJWT>=2.8.0
 
-# HTTP client (for Telegram)
+# HTTP client (for notifications)
 httpx>=0.26.0
 
 # Development & Testing

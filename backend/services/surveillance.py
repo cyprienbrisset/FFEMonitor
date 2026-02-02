@@ -10,10 +10,8 @@ from typing import Optional
 
 from backend.database import Database
 from backend.models import StatutConcours
-from backend.services.auth import FFEAuthenticator
-from backend.services.notification import MultiNotifier
+from backend.services.notification import NotificationDispatcher
 from backend.utils.logger import get_logger
-from backend.utils.retry import retry_async, rate_limiter, RetryError
 
 logger = get_logger("surveillance")
 
@@ -71,21 +69,18 @@ class SurveillanceService:
 
     def __init__(
         self,
-        authenticator: FFEAuthenticator,
         database: Database,
-        notifier: MultiNotifier,
+        notifier: NotificationDispatcher,
         check_interval: int = 5,
     ):
         """
         Initialise le service de surveillance.
 
         Args:
-            authenticator: Service d'authentification FFE
             database: Instance de la base de données
-            notifier: Service de notification multi-canal
+            notifier: Dispatcher de notifications OneSignal
             check_interval: Intervalle entre les vérifications (secondes)
         """
-        self.auth = authenticator
         self.db = database
         self.notifier = notifier
         self.check_interval = check_interval
@@ -107,9 +102,6 @@ class SurveillanceService:
         self._running = True
         logger.info(f"Surveillance démarrée (intervalle: {self.check_interval}s)")
 
-        # Message de démarrage Telegram
-        await self.notifier.send_startup_message()
-
         while self._running:
             try:
                 await self._check_all_concours()
@@ -125,9 +117,6 @@ class SurveillanceService:
 
                 if self._error_count >= self.MAX_RETRIES:
                     logger.error("Trop d'erreurs consécutives, pause prolongée...")
-                    await self.notifier.send_error_message(
-                        f"Erreurs répétées de surveillance: {e}"
-                    )
                     await asyncio.sleep(60)  # Pause d'une minute
                     self._error_count = 0
                 else:
@@ -323,32 +312,26 @@ class SurveillanceService:
             statut = StatutConcours.ENGAGEMENT if info.statut == "engagement" else StatutConcours.DEMANDE
             logger.info(f"Concours {numero} OUVERT ({statut.value})")
 
-            # Envoyer la notification
-            notification_sent_at = None
+            # Planifier les notifications pour tous les abonnés
+            opened_at = datetime.now()
             try:
-                notif_sent = await self.notifier.send_notification(
-                    numero=numero,
-                    statut=statut,
-                    nom=info.nom,
-                    lieu=info.lieu,
-                    date_debut=info.date_debut,
-                    date_fin=info.date_fin,
+                queued_count = await self.notifier.queue_notifications_for_concours(
+                    concours_numero=numero,
+                    opened_at=opened_at,
                 )
-                if notif_sent:
-                    notification_sent_at = datetime.now().isoformat()
+                logger.info(f"{queued_count} notifications planifiées pour concours {numero}")
             except Exception as e:
-                notif_sent = False
-                logger.error(f"Échec notification pour concours {numero}: {e}")
+                logger.error(f"Échec planification notifications pour concours {numero}: {e}")
 
             # Enregistrer l'événement d'ouverture
             await self.db.record_opening(
                 concours_numero=numero,
                 statut=statut.value,
-                notification_sent_at=notification_sent_at,
+                notification_sent_at=opened_at.isoformat(),
             )
 
             # Mettre à jour le statut en base
-            await self.db.update_statut(numero, statut, notifie=notif_sent)
+            await self.db.update_statut(numero, statut, notifie=True)
         elif info.statut and info.statut != statut_before:
             # Mettre à jour le statut même si pas d'ouverture
             try:

@@ -1,18 +1,19 @@
 # ============================================
-# EngageWatch - Dockerfile
-# Surveillance d'ouverture des concours FFE
+# FFE Monitor - Dockerfile
+# Surveillance des concours FFE avec notifications push
 # ============================================
 
-FROM python:3.11-slim
+FROM python:3.11-slim-bookworm
 
 # Metadata
-LABEL maintainer="EngageWatch"
-LABEL description="Surveillance automatique des concours FFE"
+LABEL maintainer="FFE Monitor"
+LABEL description="Surveillance automatique des concours FFE avec notifications multi-canal"
+LABEL version="2.0"
 
 # Variables d'environnement
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
-ENV PLAYWRIGHT_BROWSERS_PATH=/opt/playwright
+ENV PLAYWRIGHT_BROWSERS_PATH=/app/browsers
 
 # Répertoire de travail
 WORKDIR /app
@@ -37,9 +38,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libasound2 \
     libpango-1.0-0 \
     libcairo2 \
+    # Fonts pour le rendu
+    fonts-liberation \
+    fonts-noto-color-emoji \
     # Utilitaires
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+    wget \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
 # Copier les fichiers de dépendances
 COPY requirements.txt .
@@ -55,10 +61,18 @@ RUN playwright install chromium \
 # Copier le code source
 COPY backend/ ./backend/
 COPY frontend/ ./frontend/
+COPY supabase/ ./supabase/
 COPY run.py .
 
 # Créer le répertoire data avec les bonnes permissions
 RUN mkdir -p /app/data && chmod 755 /app/data
+
+# Créer un utilisateur non-root pour la sécurité
+RUN useradd -m -u 1000 ffemonitor \
+    && chown -R ffemonitor:ffemonitor /app
+
+# Passer à l'utilisateur non-root
+USER ffemonitor
 
 # Volume pour la persistance des données
 VOLUME ["/app/data"]
@@ -67,8 +81,8 @@ VOLUME ["/app/data"]
 EXPOSE 8000
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8000/health || exit 1
 
 # Commande de démarrage
 CMD ["python", "run.py"]

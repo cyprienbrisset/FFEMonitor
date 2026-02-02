@@ -1,10 +1,9 @@
 """
-Configuration de l'application EngageWatch.
+Configuration de l'application FFE Monitor.
 Chargement des variables d'environnement via pydantic-settings.
 """
 
 from pathlib import Path
-from typing import Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -18,37 +17,27 @@ class Settings(BaseSettings):
         extra="ignore",  # Ignorer les variables non définies dans la classe
     )
 
-    # Application Authentication
-    auth_username: str = "admin"
-    auth_password: str = "changeme"
-    auth_secret_key: str = "change-this-secret-key-in-production"
-    auth_token_expire_hours: int = 24
+    # Supabase (obligatoire)
+    supabase_url: str = ""
+    supabase_anon_key: str = ""
+    supabase_service_key: str = ""
+    supabase_jwt_secret: str = ""
 
-    # FFE Credentials
-    ffe_username: str
-    ffe_password: str
+    # OneSignal (obligatoire)
+    onesignal_app_id: str = ""
+    onesignal_api_key: str = ""
 
-    # Telegram
-    telegram_bot_token: str
-    telegram_chat_id: str
-
-    # Email via Resend (optionnel)
-    email_enabled: bool = False
-    resend_api_key: Optional[str] = None
-    email_from: str = "FFE Monitor <onboarding@resend.dev>"
-    email_to: Optional[str] = None
-
-    # WhatsApp via Whapi.cloud (optionnel)
-    whatsapp_enabled: bool = False
-    whapi_api_key: Optional[str] = None
-    whatsapp_to: Optional[str] = None  # Numéro au format international sans + (ex: 33612345678)
+    # Délais par plan (secondes)
+    delay_free: int = 600      # 10 minutes
+    delay_premium: int = 60    # 1 minute
+    delay_pro: int = 10        # 10 secondes
 
     # Application
     check_interval: int = 5  # secondes
     log_level: str = "INFO"
 
     # Paths
-    database_path: str = "data/engagewatch.db"
+    database_path: str = "data/ffemonitor.db"
     cookies_path: str = "data/cookies.json"
 
     # URLs FFE
@@ -67,22 +56,28 @@ class Settings(BaseSettings):
         return Path(self.cookies_path)
 
     @property
-    def email_configured(self) -> bool:
-        """Vérifie si l'email via Resend est correctement configuré."""
-        return (
-            self.email_enabled
-            and self.resend_api_key is not None
-            and self.email_to is not None
+    def supabase_configured(self) -> bool:
+        """Vérifie si Supabase est correctement configuré."""
+        return bool(
+            self.supabase_url
+            and self.supabase_anon_key
+            and self.supabase_service_key
+            and self.supabase_jwt_secret
         )
 
     @property
-    def whatsapp_configured(self) -> bool:
-        """Vérifie si WhatsApp via Whapi.cloud est correctement configuré."""
-        return (
-            self.whatsapp_enabled
-            and self.whapi_api_key is not None
-            and self.whatsapp_to is not None
-        )
+    def onesignal_configured(self) -> bool:
+        """Vérifie si OneSignal est correctement configuré."""
+        return bool(self.onesignal_app_id and self.onesignal_api_key)
+
+    def get_delay_for_plan(self, plan: str) -> int:
+        """Retourne le délai en secondes pour un plan donné."""
+        delays = {
+            "free": self.delay_free,
+            "premium": self.delay_premium,
+            "pro": self.delay_pro,
+        }
+        return delays.get(plan.lower(), self.delay_free)
 
 
 # Instance globale

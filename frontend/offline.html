@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hors ligne - FFE Monitor</title>
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#722F37">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #1A1A1A 0%, #2D2D2D 100%);
+            color: #F5F0E8;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            text-align: center;
+            max-width: 400px;
+        }
+
+        .icon {
+            font-size: 80px;
+            margin-bottom: 24px;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.1); opacity: 1; }
+        }
+
+        h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, #E5C76B, #C9A227);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        p {
+            font-size: 16px;
+            color: rgba(245, 240, 232, 0.7);
+            line-height: 1.6;
+            margin-bottom: 32px;
+        }
+
+        .retry-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 28px;
+            background: linear-gradient(135deg, #722F37, #5A252C);
+            border: none;
+            border-radius: 8px;
+            color: #F5F0E8;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .retry-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(114, 47, 55, 0.4);
+        }
+
+        .retry-btn:active {
+            transform: translateY(0);
+        }
+
+        .status {
+            margin-top: 24px;
+            padding: 12px 20px;
+            background: rgba(245, 240, 232, 0.05);
+            border-radius: 8px;
+            font-size: 14px;
+            color: rgba(245, 240, 232, 0.5);
+        }
+
+        .status.online {
+            background: rgba(74, 124, 89, 0.2);
+            color: #4A7C59;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="icon">📡</div>
+        <h1>Hors ligne</h1>
+        <p>
+            Vous n'êtes pas connecté à Internet.
+            FFE Monitor nécessite une connexion pour surveiller les concours.
+        </p>
+        <button class="retry-btn" onclick="checkConnection()">
+            🔄 Réessayer
+        </button>
+        <div class="status" id="status">
+            Vérification de la connexion...
+        </div>
+    </div>
+
+    <script>
+        const statusEl = document.getElementById('status');
+
+        function updateStatus(online) {
+            if (online) {
+                statusEl.textContent = '✅ Connexion rétablie !';
+                statusEl.classList.add('online');
+                setTimeout(() => {
+                    window.location.href = '/app';
+                }, 1000);
+            } else {
+                statusEl.textContent = '❌ Toujours hors ligne';
+                statusEl.classList.remove('online');
+            }
+        }
+
+        async function checkConnection() {
+            statusEl.textContent = 'Vérification...';
+            statusEl.classList.remove('online');
+
+            try {
+                const response = await fetch('/health', {
+                    method: 'GET',
+                    cache: 'no-store',
+                });
+                updateStatus(response.ok);
+            } catch {
+                updateStatus(false);
+            }
+        }
+
+        // Vérifier au chargement
+        checkConnection();
+
+        // Écouter les changements de connexion
+        window.addEventListener('online', () => checkConnection());
+        window.addEventListener('offline', () => updateStatus(false));
+
+        // Vérifier périodiquement
+        setInterval(checkConnection, 10000);
+    </script>
+</body>
+</html>

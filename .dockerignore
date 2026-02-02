@@ -1,3 +1,7 @@
+# ============================================
+# FFE Monitor - Docker Ignore
+# ============================================
+
 # Git
 .git
 .gitignore
@@ -11,30 +15,66 @@ __pycache__
 venv/
 env/
 .venv/
-.env
+*.egg-info/
+.eggs/
+dist/
+build/
 
 # IDE
 .idea/
 .vscode/
 *.swp
 *.swo
-
-# Data (sera monté en volume)
-data/
-*.db
-cookies.json
+*~
 
 # Tests
 tests/
 .pytest_cache/
 .coverage
 htmlcov/
+.tox/
 
-# Documentation
+# Data (sera monté en volume)
+data/
+*.db
+cookies.json
+
+# Documentation (sauf README)
+docs/
 *.md
 !README.md
 
-# Autres
+# Chrome Extension (pas nécessaire dans le container)
+chrome-extension/
+
+# Docker files
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Environnement (secrets)
+.env
+.env.*
+!.env.example
+secrets/
+*.pem
+*.key
+
+# Logs
+*.log
+logs/
+
+# Temporaires
+tmp/
+temp/
+*.tmp
+*.bak
+
+# OS
 .DS_Store
 Thumbs.db
-*.log
+
+# Node (si présent)
+node_modules/
+package-lock.json
+yarn.lock

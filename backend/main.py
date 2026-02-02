@@ -1,5 +1,5 @@
 """
-Point d'entrée de l'application EngageWatch.
+Point d'entrée de l'application FFE Monitor.
 Configuration FastAPI et gestion du cycle de vie.
 """
 
@@ -10,7 +10,7 @@ from pathlib import Path
 from fastapi import FastAPI, Request, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse, RedirectResponse, HTMLResponse
 from jose import jwt, JWTError
 
 from backend.config import settings
@@ -18,17 +18,22 @@ from backend.database import db
 from backend.routers import health, concours, auth, stats, calendar
 from backend.utils.logger import setup_logger, get_logger
 
+# Import conditionnel du router subscriptions (Supabase mode)
+try:
+    from backend.routers import subscriptions
+    HAS_SUBSCRIPTIONS = True
+except ImportError:
+    HAS_SUBSCRIPTIONS = False
+
 # Configuration du logger principal
-setup_logger("engagewatch", settings.log_level)
+setup_logger("ffemonitor", settings.log_level)
 logger = get_logger("main")
 
 # État global de l'application (partagé entre modules)
 app_state: dict = {
-    "ffe_connected": False,
     "surveillance_active": False,
     "concours_count": 0,
     "surveillance_task": None,
-    "authenticator": None,
     "notifier": None,
 }
 
@@ -40,7 +45,7 @@ async def lifespan(app: FastAPI):
     Initialise les services au démarrage et les ferme à l'arrêt.
     """
     logger.info("=" * 50)
-    logger.info("EngageWatch - Démarrage")
+    logger.info("FFE Monitor - Démarrage")
     logger.info("=" * 50)
 
     # Connexion à la base de données
@@ -48,40 +53,17 @@ async def lifespan(app: FastAPI):
     app_state["concours_count"] = await db.count_concours()
 
     # Import différé pour éviter les imports circulaires
-    from backend.services.auth import FFEAuthenticator
     from backend.services.surveillance import SurveillanceService
-    from backend.services.notification import MultiNotifier
+    from backend.services.notification import get_notification_dispatcher
 
     # Initialisation des services
     try:
-        # Notifier multi-canal (Telegram + Email si configuré)
-        notifier = MultiNotifier()
+        # Dispatcher de notifications OneSignal
+        notifier = get_notification_dispatcher()
         app_state["notifier"] = notifier
 
-        # Authentification FFE (optionnelle - le scraper fonctionne sans)
-        authenticator = None
-        try:
-            authenticator = FFEAuthenticator(
-                username=settings.ffe_username,
-                password=settings.ffe_password,
-                cookies_path=settings.cookies_full_path,
-            )
-            app_state["authenticator"] = authenticator
-
-            connected = await authenticator.login()
-            app_state["ffe_connected"] = connected
-
-            if connected:
-                logger.info("Connexion FFE établie")
-            else:
-                logger.warning("Connexion FFE échouée - Mode scraper uniquement")
-        except Exception as e:
-            logger.warning(f"FFE non configuré ou erreur: {e} - Mode scraper uniquement")
-            app_state["ffe_connected"] = False
-
-        # Démarrage de la surveillance (fonctionne avec ou sans FFE)
+        # Démarrage de la surveillance (mode scraper uniquement)
         surveillance = SurveillanceService(
-            authenticator=authenticator,
             database=db,
             notifier=notifier,
             check_interval=settings.check_interval,
@@ -117,21 +99,17 @@ async def lifespan(app: FastAPI):
     if app_state.get("notifier"):
         await app_state["notifier"].close()
 
-    # Fermer l'authentificateur
-    if app_state.get("authenticator"):
-        await app_state["authenticator"].close()
-
     # Déconnexion de la base de données
     await db.disconnect()
 
-    logger.info("EngageWatch arrêté proprement")
+    logger.info("FFE Monitor arrêté proprement")
 
 
 # Création de l'application FastAPI
 app = FastAPI(
-    title="EngageWatch",
+    title="FFE Monitor",
     description="Surveillance d'ouverture des concours FFE",
-    version="1.0.0",
+    version="2.0.0",
     lifespan=lifespan,
 )
 
@@ -151,6 +129,10 @@ app.include_router(concours.router)
 app.include_router(stats.router)
 app.include_router(calendar.router)
 
+# Router subscriptions (mode Supabase multi-utilisateurs)
+if HAS_SUBSCRIPTIONS:
+    app.include_router(subscriptions.router)
+
 # Servir les fichiers statiques du frontend
 frontend_path = Path(__file__).parent.parent / "frontend"
 if frontend_path.exists():
@@ -163,12 +145,55 @@ async def redirect_root():
     return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
 
 
+@app.get("/manifest.json")
+async def serve_manifest():
+    """Sert le manifest PWA."""
+    manifest_path = frontend_path / "manifest.json"
+    if manifest_path.exists():
+        return FileResponse(manifest_path, media_type="application/manifest+json")
+    return {"error": "Manifest non disponible"}
+
+
+@app.get("/sw.js")
+async def serve_service_worker():
+    """Sert le Service Worker."""
+    sw_path = frontend_path / "sw.js"
+    if sw_path.exists():
+        return FileResponse(
+            sw_path,
+            media_type="application/javascript",
+            headers={"Service-Worker-Allowed": "/"},
+        )
+    return {"error": "Service Worker non disponible"}
+
+
+@app.get("/offline.html")
+async def serve_offline():
+    """Sert la page hors ligne."""
+    offline_path = frontend_path / "offline.html"
+    if offline_path.exists():
+        return FileResponse(offline_path)
+    return {"message": "Page hors ligne non disponible"}
+
+
 @app.get("/login")
 async def serve_login():
-    """Sert la page de connexion (publique)."""
+    """Sert la page de connexion avec injection de la config Supabase."""
     login_path = frontend_path / "login.html"
     if login_path.exists():
-        return FileResponse(login_path)
+        # Lire le HTML et injecter la configuration Supabase
+        with open(login_path, "r", encoding="utf-8") as f:
+            html_content = f.read()
+
+        # Injecter les variables Supabase
+        html_content = html_content.replace(
+            "{{ supabase_url }}", settings.supabase_url or ""
+        )
+        html_content = html_content.replace(
+            "{{ supabase_anon_key }}", settings.supabase_anon_key or ""
+        )
+
+        return HTMLResponse(content=html_content)
     return {"message": "Page de connexion non disponible"}
 
 
