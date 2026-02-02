@@ -269,48 +269,66 @@ class FFEScraper:
         """
         Extrait le statut réel du concours depuis la page.
 
+        IMPORTANT: Très conservateur - on ne détecte "ouvert" que si on est SÛR
+        qu'il y a un bouton d'action cliquable.
+
         Returns:
             (statut, is_open) - statut et booléen si ouvert aux engagements
         """
         from datetime import datetime, date
 
-        # Patterns pour détecter si les engagements sont VRAIMENT ouverts
-        # On cherche des boutons/liens spécifiques, pas juste du texte
-        engagement_patterns = [
-            # Bouton "Engager" ou lien d'engagement
-            r'<a[^>]*href="[^"]*engager[^"]*"[^>]*>',
-            r'<button[^>]*>.*?[Ee]ngager.*?</button>',
-            r'>Engager<',
-            r'>S\'engager<',
-            # Badge/label "Ouvert aux engagements" dans un élément spécifique
-            r'class="[^"]*badge[^"]*"[^>]*>.*?[Oo]uvert.*?engagements',
-            r'class="[^"]*statut[^"]*"[^>]*>.*?[Oo]uvert',
-            r'class="[^"]*status[^"]*"[^>]*>.*?[Oo]uvert',
+        # D'abord, vérifier si c'est explicitement en prévisionnel
+        # Ces patterns indiquent que ce n'est PAS encore ouvert
+        previsionnel_patterns = [
+            r'[Pp]r[ée]visionnel',
+            r'[Oo]uverture\s+prochaine',
+            r'[Ss]era\s+ouvert',
+            r'[Ss]eront\s+ouvert',
+            r'[Pp]as\s+encore\s+ouvert',
+            r'[Bb]ient[ôo]t\s+disponible',
         ]
 
-        demande_patterns = [
-            # Bouton "Demande de participation"
-            r'<a[^>]*href="[^"]*demande[^"]*"[^>]*>',
-            r'>Demande de participation<',
-            r'>Faire une demande<',
-        ]
-
-        # Vérifier d'abord les patterns d'engagement (boutons/liens)
-        for pattern in engagement_patterns:
+        for pattern in previsionnel_patterns:
             if re.search(pattern, html, re.IGNORECASE):
-                logger.info(f"Détecté OUVERT via pattern: {pattern[:50]}")
+                logger.debug(f"Détecté PRÉVISIONNEL via pattern: {pattern}")
+                return 'previsionnel', False
+
+        # Patterns TRÈS STRICTS pour détecter l'ouverture
+        # On cherche des boutons/liens avec href contenant des actions spécifiques
+
+        # Pour les engagements amateurs: bouton avec href vers /engagement/ ou /engager
+        engagement_button_patterns = [
+            # Lien direct vers la page d'engagement avec le texte "Engager"
+            r'<a[^>]*href="[^"]*(?:/engagement/|/engager\?|action=engager)[^"]*"[^>]*>\s*(?:Engager|S\'engager)\s*</a>',
+            # Bouton submit d'engagement
+            r'<button[^>]*type="submit"[^>]*>\s*Engager\s*</button>',
+            r'<input[^>]*type="submit"[^>]*value="[^"]*[Ee]ngager[^"]*"[^>]*>',
+        ]
+
+        for pattern in engagement_button_patterns:
+            match = re.search(pattern, html, re.IGNORECASE | re.DOTALL)
+            if match:
+                logger.info(f"Détecté ENGAGEMENT OUVERT via bouton: {match.group(0)[:80]}")
                 return 'engagement', True
 
-        for pattern in demande_patterns:
-            if re.search(pattern, html, re.IGNORECASE):
-                logger.info(f"Détecté DEMANDE via pattern: {pattern[:50]}")
+        # Pour les demandes de participation (concours internationaux)
+        demande_button_patterns = [
+            # Lien direct vers demande de participation
+            r'<a[^>]*href="[^"]*(?:/demande|action=demande)[^"]*"[^>]*>\s*(?:Demande de participation|Faire une demande)\s*</a>',
+            # Bouton de demande
+            r'<button[^>]*>\s*Demande de participation\s*</button>',
+        ]
+
+        for pattern in demande_button_patterns:
+            match = re.search(pattern, html, re.IGNORECASE | re.DOTALL)
+            if match:
+                logger.info(f"Détecté DEMANDE OUVERT via bouton: {match.group(0)[:80]}")
                 return 'demande', True
 
         # États fermés - patterns précis
         status_patterns = [
             (r'[Cc]oncours\s+termin[ée]', 'termine', False),
             (r'[Cc]oncours\s+annul[ée]', 'annule', False),
-            (r'[Aa]nnul[ée]', 'annule', False),
             (r'[Cc]oncours\s+en\s+cours', 'en_cours', False),
             (r'[Ee]ngagements?\s+clôtur[ée]s?', 'cloture', False),
             (r'[Ii]nscriptions?\s+clôtur[ée]e?s?', 'cloture', False),
@@ -318,6 +336,7 @@ class FFEScraper:
 
         for pattern, statut, is_open in status_patterns:
             if re.search(pattern, html, re.IGNORECASE):
+                logger.debug(f"Détecté {statut} via pattern: {pattern}")
                 return statut, is_open
 
         # Vérifier la date de clôture pour déterminer si engagements fermés
