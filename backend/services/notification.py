@@ -445,7 +445,7 @@ class NotificationDispatcher:
     def __init__(self):
         """Initialise le dispatcher."""
         self.onesignal: Optional[OneSignalNotifier] = None
-        self.email: Optional[ResendEmailNotifier] = None
+        self.email: Optional[SupabaseEmailNotifier] = None
         self._running = False
 
         # Initialiser OneSignal si configuré
