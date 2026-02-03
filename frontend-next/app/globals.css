@@ -1448,34 +1448,20 @@ body {
 @media (max-width: 480px) {
     .header {
         padding: var(--spacing-sm);
+        justify-content: center;
     }
 
     .header-text {
-        flex: 1;
-        min-width: 0;
-    }
-
-    .header-text h1 {
-        font-size: 1.25rem;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    .tagline {
         display: none;
     }
 
     .header-actions {
-        gap: 4px;
+        display: none;
     }
 
-    .btn-guide,
-    .btn-extension,
-    .btn-profile,
-    .btn-logout {
-        padding: 8px;
-        min-width: 40px;
+    .logo-wrapper {
+        width: 80px;
+        height: 80px;
     }
 
     .status-indicator {
