@@ -166,7 +166,7 @@ class SupabaseEmailNotifier:
             logger.error(f"Erreur envoi email concours: {e}")
             return False
 
-    async def send_test_notification(self, to_email: str) -> bool:
+    async def send_test_notification(self, to_email: str) -> tuple[bool, str]:
         """Envoie un email de test via Supabase Edge Function."""
         try:
             client = await self._get_client()
@@ -175,6 +175,8 @@ class SupabaseEmailNotifier:
                 "to": to_email,
                 "type": "test",
             }
+
+            logger.info(f"Envoi email test à {to_email} via {self.function_url}")
 
             response = await client.post(
                 self.function_url,
@@ -185,23 +187,25 @@ class SupabaseEmailNotifier:
                 json=payload,
             )
 
+            logger.info(f"Réponse Supabase: {response.status_code} - {response.text[:200]}")
+
             if response.status_code == 200:
                 result = response.json()
                 if result.get("success"):
                     logger.info(f"Email de test envoyé à {to_email}")
-                    return True
+                    return True, f"Email envoyé à {to_email}"
                 else:
-                    logger.error(f"Erreur email test: {result.get('error')}")
-                    return False
+                    error_msg = result.get("error", "Erreur inconnue")
+                    logger.error(f"Erreur email test: {error_msg}")
+                    return False, error_msg
             else:
-                logger.error(
-                    f"Erreur Supabase ({response.status_code}): {response.text}"
-                )
-                return False
+                error_msg = f"Erreur HTTP {response.status_code}: {response.text[:100]}"
+                logger.error(error_msg)
+                return False, error_msg
 
         except Exception as e:
             logger.error(f"Erreur envoi email test: {e}")
-            return False
+            return False, str(e)
 
     async def close(self) -> None:
         """Ferme le client HTTP."""

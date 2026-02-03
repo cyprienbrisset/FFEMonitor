@@ -152,15 +152,15 @@ async def test_email_notification(
 
     try:
         # Envoyer un email de test à cet utilisateur
-        success = await notifier.email.send_test_notification(user.email)
+        success, message = await notifier.email.send_test_notification(user.email)
         if success:
             return MessageResponse(
-                message=f"Email de test envoyé à {user.email}",
+                message=message,
                 success=True
             )
         else:
             return MessageResponse(
-                message="Échec de l'envoi. Vérifiez que la Edge Function send-email est déployée et que RESEND_API_KEY est configuré dans Supabase.",
+                message=f"Échec: {message}",
                 success=False
             )
     except Exception as e:
