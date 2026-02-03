@@ -2759,15 +2759,6 @@ body {
     color: var(--charcoal);
 }
 
-/* Orbital Item Label */
-.orbital-label {
-    font-size: 0.5rem;
-    font-weight: 600;
-    color: var(--charcoal);
-    text-transform: uppercase;
-    letter-spacing: 0.02em;
-    opacity: 0.8;
-}
 
 /* ============================================================================
    Mobile-Optimized Dashboard Styles
@@ -3003,10 +2994,6 @@ body {
     .orbital-item {
         width: 48px;
         height: 48px;
-    }
-
-    .orbital-label {
-        display: none;
     }
 }
 

@@ -154,9 +154,9 @@ export function MobileNav({ onAddConcours, onOpenCalendar, onOpenProfile }: Mobi
             } as React.CSSProperties}
             onClick={() => handleAction(item.action)}
             aria-label={item.label}
+            title={item.label}
           >
             <span className="orbital-icon">{item.icon}</span>
-            <span className="orbital-label">{item.label}</span>
           </button>
         ))}
       </div>
