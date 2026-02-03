@@ -41,6 +41,12 @@ class LoginResponse(BaseModel):
     expires_in: int  # secondes
 
 
+class AuthConfigResponse(BaseModel):
+    """Configuration Supabase pour l'authentification."""
+    supabase_url: str
+    supabase_anon_key: str
+
+
 class UserInfo(BaseModel):
     """Informations utilisateur."""
     username: str
@@ -222,3 +228,18 @@ async def logout():
         Message de confirmation
     """
     return {"message": "Déconnexion réussie"}
+
+
+@router.get("/auth/config", response_model=AuthConfigResponse)
+async def get_auth_config():
+    """
+    Retourne la configuration Supabase pour l'authentification.
+    Utilisé par l'extension Chrome pour se connecter.
+
+    Returns:
+        URL et clé anonyme Supabase
+    """
+    return AuthConfigResponse(
+        supabase_url=settings.supabase_url,
+        supabase_anon_key=settings.supabase_anon_key,
+    )
