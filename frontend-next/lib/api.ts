@@ -157,6 +157,22 @@ export async function testNotification(channel: 'telegram' | 'email' | 'whatsapp
   return response.json()
 }
 
+export interface UserProfile {
+  id: string
+  email: string
+  plan: 'free' | 'premium' | 'pro'
+}
+
+export async function loadProfile(accessToken?: string): Promise<UserProfile> {
+  const response = await authenticatedFetch(`${API_BASE}/profile`, accessToken)
+
+  if (!response.ok) {
+    throw new Error('Erreur chargement profil')
+  }
+
+  return response.json()
+}
+
 // Helper functions
 export function formatStatut(statut: string): string {
   const labels: Record<string, string> = {

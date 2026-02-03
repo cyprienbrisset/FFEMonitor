@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { User } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
-import { testNotification } from '@/lib/api'
+import { testNotification, loadProfile, UserProfile } from '@/lib/api'
 
 interface UserProfileModalProps {
   user: User
@@ -24,6 +24,7 @@ export function UserProfileModal({ user, accessToken, onClose, onSignOut }: User
   const [activeTab, setActiveTab] = useState<Tab>('info')
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
+  const [profile, setProfile] = useState<UserProfile | null>(null)
 
   // Edit states
   const [newEmail, setNewEmail] = useState('')
@@ -33,8 +34,21 @@ export function UserProfileModal({ user, accessToken, onClose, onSignOut }: User
   const [deleteConfirm, setDeleteConfirm] = useState('')
   const [testingNotif, setTestingNotif] = useState<string | null>(null)
 
-  // User plan (from metadata or default to free)
-  const userPlan = (user.user_metadata?.plan || 'free') as string
+  // Fetch profile on mount
+  useEffect(() => {
+    async function fetchProfile() {
+      try {
+        const data = await loadProfile(accessToken)
+        setProfile(data)
+      } catch (error) {
+        console.error('Failed to load profile:', error)
+      }
+    }
+    fetchProfile()
+  }, [accessToken])
+
+  // User plan from profile or default to free
+  const userPlan = profile?.plan || 'free'
   const planInfo = PLAN_LABELS[userPlan] || PLAN_LABELS.free
 
   const supabase = createClient()

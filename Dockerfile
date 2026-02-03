@@ -1,12 +1,12 @@
 # ============================================
-# FFE Monitor - Dockerfile
+# Hoofs - Dockerfile
 # Surveillance des concours FFE avec notifications push
 # ============================================
 
 FROM python:3.11-slim-bookworm
 
 # Metadata
-LABEL maintainer="FFE Monitor"
+LABEL maintainer="Hoofs"
 LABEL description="Surveillance automatique des concours FFE avec notifications push OneSignal"
 LABEL version="2.0"
 
@@ -14,6 +14,7 @@ LABEL version="2.0"
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PLAYWRIGHT_BROWSERS_PATH=/app/browsers
+ENV DEBIAN_FRONTEND=noninteractive
 
 # Répertoire de travail
 WORKDIR /app
@@ -68,11 +69,11 @@ COPY run.py .
 RUN mkdir -p /app/data && chmod 755 /app/data
 
 # Créer un utilisateur non-root pour la sécurité
-RUN useradd -m -u 1000 ffemonitor \
-    && chown -R ffemonitor:ffemonitor /app
+RUN useradd -m -u 1000 hoofs \
+    && chown -R hoofs:hoofs /app
 
 # Passer à l'utilisateur non-root
-USER ffemonitor
+USER hoofs
 
 # Volume pour la persistance des données
 VOLUME ["/app/data"]
