@@ -15,30 +15,28 @@ from backend.utils.logger import get_logger
 logger = get_logger("notification")
 
 
-class ResendEmailNotifier:
+class SupabaseEmailNotifier:
     """
-    Gestionnaire d'emails via Resend API.
-    Envoie des emails transactionnels aux utilisateurs.
+    Gestionnaire d'emails via Supabase Edge Function.
+    Les emails sont envoyés par une fonction Supabase qui utilise Resend.
     """
 
-    RESEND_API_URL = "https://api.resend.com/emails"
-
-    def __init__(self, api_key: str, from_email: str):
+    def __init__(self, supabase_url: str, service_key: str):
         """
-        Initialise le notifier Resend.
+        Initialise le notifier Supabase Email.
 
         Args:
-            api_key: Clé API Resend
-            from_email: Adresse email d'expédition
+            supabase_url: URL du projet Supabase
+            service_key: Clé service Supabase pour authentifier les appels
         """
-        self.api_key = api_key
-        self.from_email = from_email
+        self.function_url = f"{supabase_url}/functions/v1/send-email"
+        self.service_key = service_key
         self._client: Optional[httpx.AsyncClient] = None
 
     async def _get_client(self) -> httpx.AsyncClient:
         """Retourne le client HTTP, le crée si nécessaire."""
         if self._client is None:
-            self._client = httpx.AsyncClient(timeout=10.0)
+            self._client = httpx.AsyncClient(timeout=15.0)
         return self._client
 
     async def send_email(
@@ -49,7 +47,7 @@ class ResendEmailNotifier:
         text_content: Optional[str] = None,
     ) -> bool:
         """
-        Envoie un email via Resend.
+        Envoie un email via Supabase Edge Function.
 
         Args:
             to_email: Adresse email du destinataire
@@ -64,8 +62,7 @@ class ResendEmailNotifier:
             client = await self._get_client()
 
             payload = {
-                "from": self.from_email,
-                "to": [to_email],
+                "to": to_email,
                 "subject": subject,
                 "html": html_content,
             }
@@ -74,9 +71,9 @@ class ResendEmailNotifier:
                 payload["text"] = text_content
 
             response = await client.post(
-                self.RESEND_API_URL,
+                self.function_url,
                 headers={
-                    "Authorization": f"Bearer {self.api_key}",
+                    "Authorization": f"Bearer {self.service_key}",
                     "Content-Type": "application/json",
                 },
                 json=payload,
@@ -84,16 +81,20 @@ class ResendEmailNotifier:
 
             if response.status_code == 200:
                 result = response.json()
-                logger.info(f"Email envoyé à {to_email} (id: {result.get('id')})")
-                return True
+                if result.get("success"):
+                    logger.info(f"Email envoyé à {to_email} via Supabase")
+                    return True
+                else:
+                    logger.error(f"Erreur Supabase email: {result.get('error')}")
+                    return False
             else:
                 logger.error(
-                    f"Erreur Resend ({response.status_code}): {response.text}"
+                    f"Erreur Supabase Edge Function ({response.status_code}): {response.text}"
                 )
                 return False
 
         except Exception as e:
-            logger.error(f"Erreur envoi email Resend: {e}")
+            logger.error(f"Erreur envoi email Supabase: {e}")
             return False
 
     async def send_concours_notification(
@@ -108,6 +109,7 @@ class ResendEmailNotifier:
     ) -> bool:
         """
         Envoie une notification d'ouverture de concours par email.
+        Utilise le template intégré dans la Edge Function.
 
         Args:
             to_email: Email du destinataire
@@ -121,150 +123,85 @@ class ResendEmailNotifier:
         Returns:
             True si envoi réussi, False sinon
         """
-        # Déterminer le type d'ouverture
-        if statut == "engagement":
-            emoji = "🟢"
-            type_ouverture = "Engagements ouverts"
-            color = "#6B9B7A"
-        elif statut == "demande":
-            emoji = "🔵"
-            type_ouverture = "Demandes ouvertes"
-            color = "#7090C0"
-        else:
-            emoji = "🔔"
-            type_ouverture = "Concours mis à jour"
-            color = "#C4A35A"
+        try:
+            client = await self._get_client()
 
-        titre = nom if nom else f"Concours #{numero}"
-        url = f"{settings.ffe_concours_url}/{numero}"
+            payload = {
+                "to": to_email,
+                "type": "concours",
+                "concours": {
+                    "numero": numero,
+                    "statut": statut,
+                    "nom": nom,
+                    "lieu": lieu,
+                    "date_debut": date_debut,
+                    "date_fin": date_fin,
+                },
+            }
 
-        # Template HTML email
-        html_content = f"""
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-</head>
-<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #FAF7F2;">
-    <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #FAF7F2; padding: 40px 20px;">
-        <tr>
-            <td align="center">
-                <table width="100%" max-width="500" cellpadding="0" cellspacing="0" style="background-color: #FFFFFF; border-radius: 24px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.06);">
-                    <!-- Header -->
-                    <tr>
-                        <td style="background: linear-gradient(135deg, {color}20, {color}40); padding: 32px; text-align: center;">
-                            <div style="font-size: 48px; margin-bottom: 8px;">{emoji}</div>
-                            <h1 style="margin: 0; font-size: 24px; color: #2D2D2D; font-weight: 600;">{type_ouverture}</h1>
-                        </td>
-                    </tr>
-                    <!-- Content -->
-                    <tr>
-                        <td style="padding: 32px;">
-                            <h2 style="margin: 0 0 16px 0; font-size: 20px; color: #2D2D2D;">{titre}</h2>
-                            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 24px;">
-                                <tr>
-                                    <td style="padding: 8px 0; color: #8B8B8B; font-size: 14px;">Numéro</td>
-                                    <td style="padding: 8px 0; color: #2D2D2D; font-size: 14px; text-align: right; font-weight: 500;">#{numero}</td>
-                                </tr>
-                                {"<tr><td style='padding: 8px 0; color: #8B8B8B; font-size: 14px;'>Lieu</td><td style='padding: 8px 0; color: #2D2D2D; font-size: 14px; text-align: right;'>" + lieu + "</td></tr>" if lieu else ""}
-                                {"<tr><td style='padding: 8px 0; color: #8B8B8B; font-size: 14px;'>Date</td><td style='padding: 8px 0; color: #2D2D2D; font-size: 14px; text-align: right;'>" + (date_debut or "") + (" - " + date_fin if date_fin else "") + "</td></tr>" if date_debut else ""}
-                            </table>
-                            <a href="{url}" style="display: block; width: 100%; padding: 16px; background-color: #2D2D2D; color: #FFFFFF; text-decoration: none; border-radius: 100px; text-align: center; font-weight: 600; font-size: 16px;">
-                                Accéder au concours →
-                            </a>
-                        </td>
-                    </tr>
-                    <!-- Footer -->
-                    <tr>
-                        <td style="padding: 24px 32px; background-color: #FAF7F2; text-align: center;">
-                            <p style="margin: 0; font-size: 12px; color: #8B8B8B;">
-                                🐴 Hoofs — Surveillance des concours FFE
-                            </p>
-                        </td>
-                    </tr>
-                </table>
-            </td>
-        </tr>
-    </table>
-</body>
-</html>
-"""
+            response = await client.post(
+                self.function_url,
+                headers={
+                    "Authorization": f"Bearer {self.service_key}",
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+            )
 
-        text_content = f"""
-{type_ouverture} — {titre}
+            if response.status_code == 200:
+                result = response.json()
+                if result.get("success"):
+                    logger.info(f"Email concours {numero} envoyé à {to_email}")
+                    return True
+                else:
+                    logger.error(f"Erreur email concours: {result.get('error')}")
+                    return False
+            else:
+                logger.error(
+                    f"Erreur Supabase ({response.status_code}): {response.text}"
+                )
+                return False
 
-Numéro: #{numero}
-{f"Lieu: {lieu}" if lieu else ""}
-{f"Date: {date_debut}" + (f" - {date_fin}" if date_fin else "") if date_debut else ""}
-
-Accéder au concours: {url}
-
----
-🐴 Hoofs — Surveillance des concours FFE
-"""
-
-        subject = f"{emoji} {type_ouverture} — {titre}"
-
-        return await self.send_email(
-            to_email=to_email,
-            subject=subject,
-            html_content=html_content,
-            text_content=text_content,
-        )
+        except Exception as e:
+            logger.error(f"Erreur envoi email concours: {e}")
+            return False
 
     async def send_test_notification(self, to_email: str) -> bool:
-        """Envoie un email de test."""
-        html_content = """
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-</head>
-<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #FAF7F2;">
-    <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #FAF7F2; padding: 40px 20px;">
-        <tr>
-            <td align="center">
-                <table width="100%" max-width="500" cellpadding="0" cellspacing="0" style="background-color: #FFFFFF; border-radius: 24px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.06);">
-                    <tr>
-                        <td style="background: linear-gradient(135deg, #D4E4D120, #D4E4D140); padding: 32px; text-align: center;">
-                            <div style="font-size: 48px; margin-bottom: 8px;">🐴</div>
-                            <h1 style="margin: 0; font-size: 24px; color: #2D2D2D; font-weight: 600;">Test réussi !</h1>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td style="padding: 32px; text-align: center;">
-                            <p style="margin: 0 0 24px 0; font-size: 16px; color: #4A4A4A; line-height: 1.6;">
-                                Les notifications email fonctionnent correctement.<br>
-                                Vous recevrez un email à chaque ouverture de concours surveillé.
-                            </p>
-                            <div style="display: inline-block; padding: 12px 24px; background-color: #D4E4D1; color: #6B9B7A; border-radius: 100px; font-weight: 600; font-size: 14px;">
-                                ✓ Configuration validée
-                            </div>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td style="padding: 24px 32px; background-color: #FAF7F2; text-align: center;">
-                            <p style="margin: 0; font-size: 12px; color: #8B8B8B;">
-                                🐴 Hoofs — Surveillance des concours FFE
-                            </p>
-                        </td>
-                    </tr>
-                </table>
-            </td>
-        </tr>
-    </table>
-</body>
-</html>
-"""
+        """Envoie un email de test via Supabase Edge Function."""
+        try:
+            client = await self._get_client()
 
-        return await self.send_email(
-            to_email=to_email,
-            subject="🐴 Hoofs — Test des notifications email",
-            html_content=html_content,
-            text_content="Test réussi ! Les notifications email fonctionnent correctement.",
-        )
+            payload = {
+                "to": to_email,
+                "type": "test",
+            }
+
+            response = await client.post(
+                self.function_url,
+                headers={
+                    "Authorization": f"Bearer {self.service_key}",
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+            )
+
+            if response.status_code == 200:
+                result = response.json()
+                if result.get("success"):
+                    logger.info(f"Email de test envoyé à {to_email}")
+                    return True
+                else:
+                    logger.error(f"Erreur email test: {result.get('error')}")
+                    return False
+            else:
+                logger.error(
+                    f"Erreur Supabase ({response.status_code}): {response.text}"
+                )
+                return False
+
+        except Exception as e:
+            logger.error(f"Erreur envoi email test: {e}")
+            return False
 
     async def close(self) -> None:
         """Ferme le client HTTP."""
@@ -521,15 +458,15 @@ class NotificationDispatcher:
         else:
             logger.warning("OneSignal non configuré - push notifications désactivées")
 
-        # Initialiser Resend si configuré
-        if settings.resend_configured:
-            self.email = ResendEmailNotifier(
-                api_key=settings.resend_api_key,
-                from_email=settings.resend_from_email,
+        # Initialiser Supabase Email si configuré
+        if settings.supabase_fully_configured:
+            self.email = SupabaseEmailNotifier(
+                supabase_url=settings.supabase_url,
+                service_key=settings.supabase_service_key,
             )
-            logger.info("Resend email dispatcher initialisé")
+            logger.info("Supabase email dispatcher initialisé")
         else:
-            logger.warning("Resend non configuré - email notifications désactivées")
+            logger.warning("Supabase non entièrement configuré - email notifications désactivées")
 
     async def queue_notifications_for_concours(
         self, concours_numero: int, opened_at: datetime

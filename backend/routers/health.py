@@ -122,7 +122,7 @@ async def test_email_notification(
     user: UserContext = Depends(get_current_user)
 ) -> MessageResponse:
     """
-    Envoie une notification email de test via Resend à l'utilisateur connecté.
+    Envoie une notification email de test via Supabase Edge Function.
 
     Returns:
         MessageResponse avec le résultat
@@ -134,9 +134,9 @@ async def test_email_notification(
     if not notifier:
         return MessageResponse(message="Notifier non initialisé", success=False)
 
-    if not settings.resend_configured:
+    if not settings.supabase_fully_configured:
         return MessageResponse(
-            message="Resend non configuré (RESEND_API_KEY manquant)",
+            message="Supabase non entièrement configuré (service_key ou jwt_secret manquant)",
             success=False
         )
 
@@ -160,7 +160,7 @@ async def test_email_notification(
             )
         else:
             return MessageResponse(
-                message="Échec de l'envoi de l'email. Vérifiez la configuration Resend.",
+                message="Échec de l'envoi. Vérifiez que la Edge Function send-email est déployée et que RESEND_API_KEY est configuré dans Supabase.",
                 success=False
             )
     except Exception as e:
