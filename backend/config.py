@@ -26,9 +26,13 @@ class Settings(BaseSettings):
     supabase_service_key: str = ""
     supabase_jwt_secret: str = ""
 
-    # OneSignal (obligatoire)
+    # OneSignal (push notifications)
     onesignal_app_id: str = ""
     onesignal_api_key: str = ""
+
+    # Resend (email notifications)
+    resend_api_key: str = ""
+    resend_from_email: str = "Hoofs <notifications@hoofs.fr>"
 
     # Délais par plan (secondes)
     delay_free: int = 600      # 10 minutes
@@ -81,6 +85,11 @@ class Settings(BaseSettings):
     def onesignal_configured(self) -> bool:
         """Vérifie si OneSignal est correctement configuré."""
         return bool(self.onesignal_app_id and self.onesignal_api_key)
+
+    @property
+    def resend_configured(self) -> bool:
+        """Vérifie si Resend (email) est correctement configuré."""
+        return bool(self.resend_api_key)
 
     def get_delay_for_plan(self, plan: str) -> int:
         """Retourne le délai en secondes pour un plan donné."""

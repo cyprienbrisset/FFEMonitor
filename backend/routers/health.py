@@ -115,3 +115,53 @@ async def test_push_notification(
             return MessageResponse(message="Échec de l'envoi de la notification", success=False)
     except Exception as e:
         return MessageResponse(message=f"Erreur: {str(e)}", success=False)
+
+
+@router.post("/test-email", response_model=MessageResponse)
+async def test_email_notification(
+    user: UserContext = Depends(get_current_user)
+) -> MessageResponse:
+    """
+    Envoie une notification email de test via Resend à l'utilisateur connecté.
+
+    Returns:
+        MessageResponse avec le résultat
+    """
+    from backend.main import app_state
+    from backend.config import settings
+
+    notifier = app_state.get("notifier")
+    if not notifier:
+        return MessageResponse(message="Notifier non initialisé", success=False)
+
+    if not settings.resend_configured:
+        return MessageResponse(
+            message="Resend non configuré (RESEND_API_KEY manquant)",
+            success=False
+        )
+
+    if not notifier.email:
+        return MessageResponse(message="Email notifier non disponible", success=False)
+
+    # Vérifier si l'utilisateur a un email
+    if not user.email:
+        return MessageResponse(
+            message="Aucune adresse email associée à votre compte",
+            success=False
+        )
+
+    try:
+        # Envoyer un email de test à cet utilisateur
+        success = await notifier.email.send_test_notification(user.email)
+        if success:
+            return MessageResponse(
+                message=f"Email de test envoyé à {user.email}",
+                success=True
+            )
+        else:
+            return MessageResponse(
+                message="Échec de l'envoi de l'email. Vérifiez la configuration Resend.",
+                success=False
+            )
+    except Exception as e:
+        return MessageResponse(message=f"Erreur: {str(e)}", success=False)

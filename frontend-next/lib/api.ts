@@ -154,13 +154,23 @@ export async function testNotification(channel: 'telegram' | 'email' | 'push', a
     method: 'POST',
   })
 
-  if (!response.ok) {
-    const text = await response.text()
-    console.error('Test notification error:', response.status, text)
-    throw new Error(`Erreur ${response.status}: ${text.slice(0, 100)}`)
-  }
+  const text = await response.text()
 
-  return response.json()
+  // Essayer de parser comme JSON
+  try {
+    const data = JSON.parse(text)
+    if (!response.ok) {
+      throw new Error(data.message || `Erreur ${response.status}`)
+    }
+    return data
+  } catch {
+    // Si ce n'est pas du JSON, c'est une erreur texte
+    if (!response.ok) {
+      console.error('Test notification error:', response.status, text)
+      throw new Error(text.slice(0, 100) || `Erreur ${response.status}`)
+    }
+    return { success: true, message: text }
+  }
 }
 
 export interface UserProfile {

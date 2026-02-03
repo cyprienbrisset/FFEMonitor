@@ -1,6 +1,6 @@
 """
 Service de notification pour Hoofs.
-Utilise OneSignal pour les push notifications et les emails.
+Utilise OneSignal pour les push notifications et Resend pour les emails.
 """
 
 import asyncio
@@ -13,6 +13,264 @@ from backend.config import settings
 from backend.utils.logger import get_logger
 
 logger = get_logger("notification")
+
+
+class ResendEmailNotifier:
+    """
+    Gestionnaire d'emails via Resend API.
+    Envoie des emails transactionnels aux utilisateurs.
+    """
+
+    RESEND_API_URL = "https://api.resend.com/emails"
+
+    def __init__(self, api_key: str, from_email: str):
+        """
+        Initialise le notifier Resend.
+
+        Args:
+            api_key: Clé API Resend
+            from_email: Adresse email d'expédition
+        """
+        self.api_key = api_key
+        self.from_email = from_email
+        self._client: Optional[httpx.AsyncClient] = None
+
+    async def _get_client(self) -> httpx.AsyncClient:
+        """Retourne le client HTTP, le crée si nécessaire."""
+        if self._client is None:
+            self._client = httpx.AsyncClient(timeout=10.0)
+        return self._client
+
+    async def send_email(
+        self,
+        to_email: str,
+        subject: str,
+        html_content: str,
+        text_content: Optional[str] = None,
+    ) -> bool:
+        """
+        Envoie un email via Resend.
+
+        Args:
+            to_email: Adresse email du destinataire
+            subject: Sujet de l'email
+            html_content: Contenu HTML de l'email
+            text_content: Contenu texte alternatif (optionnel)
+
+        Returns:
+            True si envoi réussi, False sinon
+        """
+        try:
+            client = await self._get_client()
+
+            payload = {
+                "from": self.from_email,
+                "to": [to_email],
+                "subject": subject,
+                "html": html_content,
+            }
+
+            if text_content:
+                payload["text"] = text_content
+
+            response = await client.post(
+                self.RESEND_API_URL,
+                headers={
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+            )
+
+            if response.status_code == 200:
+                result = response.json()
+                logger.info(f"Email envoyé à {to_email} (id: {result.get('id')})")
+                return True
+            else:
+                logger.error(
+                    f"Erreur Resend ({response.status_code}): {response.text}"
+                )
+                return False
+
+        except Exception as e:
+            logger.error(f"Erreur envoi email Resend: {e}")
+            return False
+
+    async def send_concours_notification(
+        self,
+        to_email: str,
+        numero: int,
+        statut: str,
+        nom: str | None = None,
+        lieu: str | None = None,
+        date_debut: str | None = None,
+        date_fin: str | None = None,
+    ) -> bool:
+        """
+        Envoie une notification d'ouverture de concours par email.
+
+        Args:
+            to_email: Email du destinataire
+            numero: Numéro du concours
+            statut: Type d'ouverture (engagement, demande, etc.)
+            nom: Nom du concours
+            lieu: Lieu du concours
+            date_debut: Date de début
+            date_fin: Date de fin
+
+        Returns:
+            True si envoi réussi, False sinon
+        """
+        # Déterminer le type d'ouverture
+        if statut == "engagement":
+            emoji = "🟢"
+            type_ouverture = "Engagements ouverts"
+            color = "#6B9B7A"
+        elif statut == "demande":
+            emoji = "🔵"
+            type_ouverture = "Demandes ouvertes"
+            color = "#7090C0"
+        else:
+            emoji = "🔔"
+            type_ouverture = "Concours mis à jour"
+            color = "#C4A35A"
+
+        titre = nom if nom else f"Concours #{numero}"
+        url = f"{settings.ffe_concours_url}/{numero}"
+
+        # Template HTML email
+        html_content = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #FAF7F2;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #FAF7F2; padding: 40px 20px;">
+        <tr>
+            <td align="center">
+                <table width="100%" max-width="500" cellpadding="0" cellspacing="0" style="background-color: #FFFFFF; border-radius: 24px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.06);">
+                    <!-- Header -->
+                    <tr>
+                        <td style="background: linear-gradient(135deg, {color}20, {color}40); padding: 32px; text-align: center;">
+                            <div style="font-size: 48px; margin-bottom: 8px;">{emoji}</div>
+                            <h1 style="margin: 0; font-size: 24px; color: #2D2D2D; font-weight: 600;">{type_ouverture}</h1>
+                        </td>
+                    </tr>
+                    <!-- Content -->
+                    <tr>
+                        <td style="padding: 32px;">
+                            <h2 style="margin: 0 0 16px 0; font-size: 20px; color: #2D2D2D;">{titre}</h2>
+                            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 24px;">
+                                <tr>
+                                    <td style="padding: 8px 0; color: #8B8B8B; font-size: 14px;">Numéro</td>
+                                    <td style="padding: 8px 0; color: #2D2D2D; font-size: 14px; text-align: right; font-weight: 500;">#{numero}</td>
+                                </tr>
+                                {"<tr><td style='padding: 8px 0; color: #8B8B8B; font-size: 14px;'>Lieu</td><td style='padding: 8px 0; color: #2D2D2D; font-size: 14px; text-align: right;'>" + lieu + "</td></tr>" if lieu else ""}
+                                {"<tr><td style='padding: 8px 0; color: #8B8B8B; font-size: 14px;'>Date</td><td style='padding: 8px 0; color: #2D2D2D; font-size: 14px; text-align: right;'>" + (date_debut or "") + (" - " + date_fin if date_fin else "") + "</td></tr>" if date_debut else ""}
+                            </table>
+                            <a href="{url}" style="display: block; width: 100%; padding: 16px; background-color: #2D2D2D; color: #FFFFFF; text-decoration: none; border-radius: 100px; text-align: center; font-weight: 600; font-size: 16px;">
+                                Accéder au concours →
+                            </a>
+                        </td>
+                    </tr>
+                    <!-- Footer -->
+                    <tr>
+                        <td style="padding: 24px 32px; background-color: #FAF7F2; text-align: center;">
+                            <p style="margin: 0; font-size: 12px; color: #8B8B8B;">
+                                🐴 Hoofs — Surveillance des concours FFE
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+"""
+
+        text_content = f"""
+{type_ouverture} — {titre}
+
+Numéro: #{numero}
+{f"Lieu: {lieu}" if lieu else ""}
+{f"Date: {date_debut}" + (f" - {date_fin}" if date_fin else "") if date_debut else ""}
+
+Accéder au concours: {url}
+
+---
+🐴 Hoofs — Surveillance des concours FFE
+"""
+
+        subject = f"{emoji} {type_ouverture} — {titre}"
+
+        return await self.send_email(
+            to_email=to_email,
+            subject=subject,
+            html_content=html_content,
+            text_content=text_content,
+        )
+
+    async def send_test_notification(self, to_email: str) -> bool:
+        """Envoie un email de test."""
+        html_content = """
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #FAF7F2;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #FAF7F2; padding: 40px 20px;">
+        <tr>
+            <td align="center">
+                <table width="100%" max-width="500" cellpadding="0" cellspacing="0" style="background-color: #FFFFFF; border-radius: 24px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.06);">
+                    <tr>
+                        <td style="background: linear-gradient(135deg, #D4E4D120, #D4E4D140); padding: 32px; text-align: center;">
+                            <div style="font-size: 48px; margin-bottom: 8px;">🐴</div>
+                            <h1 style="margin: 0; font-size: 24px; color: #2D2D2D; font-weight: 600;">Test réussi !</h1>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 32px; text-align: center;">
+                            <p style="margin: 0 0 24px 0; font-size: 16px; color: #4A4A4A; line-height: 1.6;">
+                                Les notifications email fonctionnent correctement.<br>
+                                Vous recevrez un email à chaque ouverture de concours surveillé.
+                            </p>
+                            <div style="display: inline-block; padding: 12px 24px; background-color: #D4E4D1; color: #6B9B7A; border-radius: 100px; font-weight: 600; font-size: 14px;">
+                                ✓ Configuration validée
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 24px 32px; background-color: #FAF7F2; text-align: center;">
+                            <p style="margin: 0; font-size: 12px; color: #8B8B8B;">
+                                🐴 Hoofs — Surveillance des concours FFE
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+"""
+
+        return await self.send_email(
+            to_email=to_email,
+            subject="🐴 Hoofs — Test des notifications email",
+            html_content=html_content,
+            text_content="Test réussi ! Les notifications email fonctionnent correctement.",
+        )
+
+    async def close(self) -> None:
+        """Ferme le client HTTP."""
+        if self._client:
+            await self._client.aclose()
+            self._client = None
 
 
 class OneSignalNotifier:
@@ -244,11 +502,13 @@ class NotificationDispatcher:
     """
     Dispatcher de notifications multi-utilisateurs.
     Gère la file d'attente des notifications avec délais différenciés par plan.
+    Supporte les push (OneSignal) et les emails (Resend).
     """
 
     def __init__(self):
         """Initialise le dispatcher."""
         self.onesignal: Optional[OneSignalNotifier] = None
+        self.email: Optional[ResendEmailNotifier] = None
         self._running = False
 
         # Initialiser OneSignal si configuré
@@ -259,7 +519,17 @@ class NotificationDispatcher:
             )
             logger.info("OneSignal dispatcher initialisé")
         else:
-            logger.warning("OneSignal non configuré - notifications désactivées")
+            logger.warning("OneSignal non configuré - push notifications désactivées")
+
+        # Initialiser Resend si configuré
+        if settings.resend_configured:
+            self.email = ResendEmailNotifier(
+                api_key=settings.resend_api_key,
+                from_email=settings.resend_from_email,
+            )
+            logger.info("Resend email dispatcher initialisé")
+        else:
+            logger.warning("Resend non configuré - email notifications désactivées")
 
     async def queue_notifications_for_concours(
         self, concours_numero: int, opened_at: datetime
@@ -319,11 +589,12 @@ class NotificationDispatcher:
     async def process_pending_notifications(self) -> int:
         """
         Traite les notifications en attente dont l'heure d'envoi est passée.
+        Envoie via push (OneSignal) et/ou email (Resend) selon les préférences.
 
         Returns:
             Nombre de notifications envoyées
         """
-        if not self.onesignal:
+        if not self.onesignal and not self.email:
             return 0
 
         from backend.supabase_client import supabase
@@ -345,11 +616,15 @@ class NotificationDispatcher:
                 continue
 
             user_id = profile.get("id")
+            user_email = profile.get("email")
             plan = profile.get("plan", "free")
             player_id = profile.get("onesignal_player_id")
+            delay = settings.get_delay_for_plan(plan)
 
-            # Envoyer via OneSignal si player_id disponible
-            if player_id and profile.get("notification_push", True):
+            notification_sent = False
+
+            # Envoyer via OneSignal si player_id disponible et push activé
+            if self.onesignal and player_id and profile.get("notification_push", True):
                 success = await self.onesignal.send_concours_notification(
                     player_id=player_id,
                     numero=concours.get("numero"),
@@ -361,8 +636,6 @@ class NotificationDispatcher:
                 )
 
                 if success:
-                    # Log la notification
-                    delay = settings.get_delay_for_plan(plan)
                     await supabase.log_notification(
                         user_id=user_id,
                         concours_numero=concours.get("numero"),
@@ -370,7 +643,32 @@ class NotificationDispatcher:
                         plan=plan,
                         delay_seconds=delay,
                     )
-                    sent_count += 1
+                    notification_sent = True
+
+            # Envoyer via email si email activé
+            if self.email and user_email and profile.get("notification_email", False):
+                success = await self.email.send_concours_notification(
+                    to_email=user_email,
+                    numero=concours.get("numero"),
+                    statut=concours.get("statut", "ferme"),
+                    nom=concours.get("nom"),
+                    lieu=concours.get("lieu"),
+                    date_debut=concours.get("date_debut"),
+                    date_fin=concours.get("date_fin"),
+                )
+
+                if success:
+                    await supabase.log_notification(
+                        user_id=user_id,
+                        concours_numero=concours.get("numero"),
+                        channel="email",
+                        plan=plan,
+                        delay_seconds=delay,
+                    )
+                    notification_sent = True
+
+            if notification_sent:
+                sent_count += 1
 
             # Marquer comme envoyée
             await supabase.mark_notification_sent(notif.get("id"))
@@ -408,6 +706,8 @@ class NotificationDispatcher:
         self.stop_worker()
         if self.onesignal:
             await self.onesignal.close()
+        if self.email:
+            await self.email.close()
 
 
 # Instance globale du dispatcher
