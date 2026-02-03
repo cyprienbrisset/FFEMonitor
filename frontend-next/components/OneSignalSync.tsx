@@ -105,8 +105,63 @@ export function OneSignalSync({ accessToken }: OneSignalSyncProps) {
 async function syncSubscriptionId(subscriptionId: string, accessToken: string) {
   try {
     await updateProfile({ onesignal_player_id: subscriptionId }, accessToken)
-    console.log('[OneSignal] Player ID synchronisé avec le backend')
+    console.log('[OneSignal] Player ID synchronisé avec le backend:', subscriptionId)
+    return true
   } catch (error) {
     console.error('[OneSignal] Erreur sync backend:', error)
+    return false
   }
+}
+
+// Force sync OneSignal subscription ID to backend
+export async function forceOneSignalSync(accessToken: string): Promise<{ success: boolean; message: string }> {
+  if (typeof window === 'undefined' || !window.OneSignalDeferred) {
+    return { success: false, message: 'OneSignal non disponible' }
+  }
+
+  return new Promise((resolve) => {
+    window.OneSignalDeferred!.push(async (OneSignal: any) => {
+      try {
+        // Get current subscription
+        const subscriptionId = await OneSignal.User?.PushSubscription?.id
+        console.log('[OneSignal] Force sync - subscription ID:', subscriptionId)
+
+        if (!subscriptionId) {
+          // Check if permission is granted
+          const permission = await OneSignal.Notifications?.permission
+          console.log('[OneSignal] Permission status:', permission)
+
+          if (permission !== true) {
+            resolve({ success: false, message: 'Notifications non autorisées. Cliquez sur "Activer les notifications push".' })
+            return
+          }
+
+          // Permission granted but no subscription ID - try to opt in
+          try {
+            await OneSignal.User?.PushSubscription?.optIn()
+            // Wait a bit and try again
+            await new Promise(r => setTimeout(r, 1000))
+            const newId = await OneSignal.User?.PushSubscription?.id
+            if (newId) {
+              const synced = await syncSubscriptionId(newId, accessToken)
+              resolve({ success: synced, message: synced ? 'Notifications activées et synchronisées !' : 'Erreur de synchronisation' })
+              return
+            }
+          } catch (e) {
+            console.error('[OneSignal] OptIn error:', e)
+          }
+
+          resolve({ success: false, message: 'Impossible d\'obtenir l\'ID de notification. Essayez de recharger la page.' })
+          return
+        }
+
+        // Sync to backend
+        const synced = await syncSubscriptionId(subscriptionId, accessToken)
+        resolve({ success: synced, message: synced ? 'Notifications synchronisées !' : 'Erreur de synchronisation avec le serveur' })
+      } catch (error: any) {
+        console.error('[OneSignal] Force sync error:', error)
+        resolve({ success: false, message: error.message || 'Erreur OneSignal' })
+      }
+    })
+  })
 }

@@ -4,11 +4,12 @@ import { useState, useEffect } from 'react'
 import { User } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
 import { testNotification, loadProfile, UserProfile } from '@/lib/api'
-import { getPushStatus, requestPushPermission, isIOS, isPWA } from '@/components/OneSignalSync'
+import { getPushStatus, requestPushPermission, isIOS, isPWA, forceOneSignalSync } from '@/components/OneSignalSync'
 
 interface UserProfileModalProps {
   user: User
   accessToken?: string
+  getAccessToken?: () => Promise<string | null>
   onClose: () => void
   onSignOut: () => void
 }
@@ -21,7 +22,7 @@ const PLAN_LABELS: Record<string, { label: string; color: string }> = {
   pro: { label: 'Pro', color: 'var(--success)' },
 }
 
-export function UserProfileModal({ user, accessToken, onClose, onSignOut }: UserProfileModalProps) {
+export function UserProfileModal({ user, accessToken, getAccessToken, onClose, onSignOut }: UserProfileModalProps) {
   const [activeTab, setActiveTab] = useState<Tab>('info')
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
@@ -168,10 +169,31 @@ export function UserProfileModal({ user, accessToken, onClose, onSignOut }: User
   const handleTestNotification = async (channel: 'telegram' | 'email' | 'push') => {
     setTestingNotif(channel)
     try {
-      const result = await testNotification(channel as any, accessToken)
+      // Get fresh token to avoid expiration issues
+      const token = getAccessToken ? await getAccessToken() : accessToken
+      if (!token) {
+        showMessage('Session expirée. Veuillez vous reconnecter.', 'error')
+        return
+      }
+
+      // For push notifications, sync OneSignal ID first
+      if (channel === 'push') {
+        showMessage('Synchronisation en cours...', 'success')
+        const syncResult = await forceOneSignalSync(token)
+        if (!syncResult.success) {
+          showMessage(syncResult.message, 'error')
+          return
+        }
+      }
+
+      const result = await testNotification(channel as any, token)
       showMessage(result.message || 'Notification envoyée !', result.success ? 'success' : 'error')
     } catch (error: any) {
-      showMessage(error.message || 'Erreur lors du test', 'error')
+      if (error.message?.includes('401') || error.message?.includes('expiré') || error.message?.includes('invalide')) {
+        showMessage('Session expirée. Veuillez vous reconnecter.', 'error')
+      } else {
+        showMessage(error.message || 'Erreur lors du test', 'error')
+      }
     } finally {
       setTestingNotif(null)
     }

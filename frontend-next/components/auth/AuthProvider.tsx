@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState, ReactNode, useMemo } from 'react'
+import { createContext, useContext, useEffect, useState, ReactNode, useMemo, useCallback } from 'react'
 import { Session, User } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
 
@@ -9,6 +9,7 @@ interface AuthContextType {
   user: User | null
   loading: boolean
   signOut: () => Promise<void>
+  getAccessToken: () => Promise<string | null>
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -16,6 +17,7 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
   signOut: async () => {},
+  getAccessToken: async () => null,
 })
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -57,8 +59,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null)
   }
 
+  // Get a fresh access token (auto-refreshes if needed)
+  const getAccessToken = useCallback(async (): Promise<string | null> => {
+    try {
+      const { data: { session: freshSession }, error } = await supabase.auth.getSession()
+      if (error) {
+        console.error('[Auth] Error getting session:', error)
+        return null
+      }
+      if (freshSession) {
+        // Update state if session changed
+        if (freshSession.access_token !== session?.access_token) {
+          setSession(freshSession)
+          setUser(freshSession.user)
+        }
+        return freshSession.access_token
+      }
+      return null
+    } catch (error) {
+      console.error('[Auth] Error refreshing token:', error)
+      return null
+    }
+  }, [supabase, session?.access_token])
+
   return (
-    <AuthContext.Provider value={{ session, user, loading, signOut }}>
+    <AuthContext.Provider value={{ session, user, loading, signOut, getAccessToken }}>
       {children}
     </AuthContext.Provider>
   )

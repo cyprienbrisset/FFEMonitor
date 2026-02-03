@@ -33,7 +33,7 @@ export default function DashboardPage() {
   const [showExtension, setShowExtension] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
   const router = useRouter()
-  const { session, user, signOut, loading: authLoading } = useAuth()
+  const { session, user, signOut, loading: authLoading, getAccessToken } = useAuth()
 
   // Refs for mobile navigation
   const addFormRef = useRef<HTMLDivElement>(null)
@@ -199,6 +199,7 @@ export default function DashboardPage() {
         <UserProfileModal
           user={user}
           accessToken={accessToken}
+          getAccessToken={getAccessToken}
           onClose={() => setShowProfile(false)}
           onSignOut={handleLogout}
         />
