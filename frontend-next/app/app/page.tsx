@@ -115,14 +115,14 @@ export default function DashboardPage() {
         <div className="logo-wrapper">
           <Image
             src="/logo.svg"
-            alt="FFE Monitor"
+            alt="Hoofs"
             width={40}
             height={40}
             className="logo"
           />
         </div>
         <div className="header-text">
-          <h1>FFE Monitor</h1>
+          <h1>Hoofs</h1>
           <p className="tagline">Surveillance Premium des Concours FFE</p>
         </div>
         <div className="header-actions">
@@ -185,7 +185,7 @@ export default function DashboardPage() {
       {/* Footer */}
       <footer className="footer">
         <div className="footer-content">
-          <span className="footer-brand">FFE Monitor</span>
+          <span className="footer-brand">Hoofs</span>
           <span className="footer-divider">•</span>
           <span className="footer-version">v1.0</span>
           <span className="footer-divider">•</span>

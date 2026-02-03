@@ -1,5 +1,5 @@
 """
-Service de notification pour FFE Monitor.
+Service de notification pour Hoofs.
 Utilise OneSignal pour les push notifications et les emails.
 """
 
@@ -219,7 +219,7 @@ class OneSignalNotifier:
     async def send_startup_notification(self) -> bool:
         """Envoie une notification de démarrage à tous les utilisateurs."""
         return await self.send_to_all(
-            title="🐴 FFE Monitor",
+            title="🐴 Hoofs",
             message="Surveillance active - Vous serez notifié à l'ouverture des concours",
             url="/app",
         )
@@ -228,7 +228,7 @@ class OneSignalNotifier:
         """Envoie une notification de test."""
         return await self.send_to_player(
             player_id=player_id,
-            title="🐴 FFE Monitor - Test",
+            title="🐴 Hoofs - Test",
             message="Les notifications push fonctionnent correctement !",
             url="/app",
         )

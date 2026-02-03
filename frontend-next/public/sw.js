@@ -1,5 +1,5 @@
 /**
- * FFE Monitor - Service Worker for Next.js
+ * Hoofs - Service Worker for Next.js
  * Stratégie: Network-first pour navigation, Cache-first pour assets
  * Intégration OneSignal pour les notifications push
  */
@@ -7,8 +7,8 @@
 // Import OneSignal SDK for push notifications
 importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");
 
-const CACHE_NAME = 'ffemonitor-v5';
-const STATIC_CACHE_NAME = 'ffemonitor-static-v5';
+const CACHE_NAME = 'hoofs-v5';
+const STATIC_CACHE_NAME = 'hoofs-static-v5';
 
 // Assets statiques à mettre en cache
 const STATIC_ASSETS = [

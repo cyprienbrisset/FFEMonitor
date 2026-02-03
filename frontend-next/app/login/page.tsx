@@ -27,7 +27,7 @@ export default function LoginPage() {
             <div className="login-logo-wrapper">
               <Image
                 src="/logo.svg"
-                alt="FFE Monitor Logo"
+                alt="Hoofs Logo"
                 width={72}
                 height={72}
                 className="login-logo"

@@ -3,7 +3,7 @@ import Link from 'next/link'
 import './guide.css'
 
 export const metadata = {
-  title: 'FFE Monitor — Guide Utilisateur',
+  title: 'Hoofs — Guide Utilisateur',
 }
 
 export default function GuidePage() {
@@ -18,10 +18,10 @@ export default function GuidePage() {
           Retour
         </Link>
         <div className="guide-logo">
-          <Image src="/logo.svg" alt="FFE Monitor" width={48} height={48} />
+          <Image src="/logo.svg" alt="Hoofs" width={48} height={48} />
         </div>
         <h1>Guide Utilisateur</h1>
-        <p className="guide-subtitle">Tout savoir sur FFE Monitor</p>
+        <p className="guide-subtitle">Tout savoir sur Hoofs</p>
       </header>
 
       {/* Content */}
@@ -34,8 +34,8 @@ export default function GuidePage() {
               <path d="M12 16v-4M12 8h.01"/>
             </svg>
           </div>
-          <h2>Qu'est-ce qu'FFE Monitor ?</h2>
-          <p><strong>FFE Monitor</strong> surveille automatiquement les concours équestres FFE et vous alerte instantanément dès l'ouverture des engagements.</p>
+          <h2>Qu'est-ce qu'Hoofs ?</h2>
+          <p><strong>Hoofs</strong> surveille automatiquement les concours équestres FFE et vous alerte instantanément dès l'ouverture des engagements.</p>
           <p className="guide-highlight">Plus besoin de rafraîchir la page manuellement, on s'en charge pour vous.</p>
         </section>
 
@@ -114,7 +114,7 @@ export default function GuidePage() {
             </details>
             <details className="guide-faq-item">
               <summary>Puis-je m'engager depuis l'application ?</summary>
-              <p>Non, FFE Monitor est un outil de surveillance. Une fois notifié, rendez-vous sur le site FFE pour vous engager.</p>
+              <p>Non, Hoofs est un outil de surveillance. Une fois notifié, rendez-vous sur le site FFE pour vous engager.</p>
             </details>
             <details className="guide-faq-item">
               <summary>L'application fonctionne-t-elle 24h/24 ?</summary>
@@ -155,7 +155,7 @@ export default function GuidePage() {
       {/* Footer */}
       <footer className="guide-footer">
         <p className="guide-tagline">Ne manquez plus jamais l'ouverture d'un concours</p>
-        <p className="guide-brand">FFE Monitor — Surveillance Premium</p>
+        <p className="guide-brand">Hoofs — Surveillance Premium</p>
       </footer>
     </div>
   )

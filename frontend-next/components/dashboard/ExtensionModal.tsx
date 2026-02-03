@@ -22,7 +22,7 @@ export function ExtensionModal({ onClose }: ExtensionModalProps) {
         <div className="extension-download">
           <a
             href="/chrome-extension.zip"
-            download="ffe-monitor-extension.zip"
+            download="hoofs-extension.zip"
             className="btn-download-extension"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -77,7 +77,7 @@ export function ExtensionModal({ onClose }: ExtensionModalProps) {
             <span className="step-number">5</span>
             <div className="step-content">
               <h3>Épingler l'extension</h3>
-              <p>Cliquez sur l'icône puzzle puis épinglez FFE Monitor pour un accès rapide</p>
+              <p>Cliquez sur l'icône puzzle puis épinglez Hoofs pour un accès rapide</p>
             </div>
           </div>
         </div>

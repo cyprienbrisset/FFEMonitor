@@ -19,7 +19,7 @@ const dmSans = DM_Sans({
 })
 
 export const metadata: Metadata = {
-  title: 'FFE Monitor',
+  title: 'Hoofs',
   description: 'Surveillance des concours FFE - Recevez des notifications dès l\'ouverture des engagements',
   manifest: '/manifest.json',
   icons: {
@@ -36,16 +36,16 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'FFE Monitor',
+    title: 'Hoofs',
   },
   formatDetection: {
     telephone: false,
   },
   openGraph: {
-    title: 'FFE Monitor',
+    title: 'Hoofs',
     description: 'Surveillance des concours FFE - Recevez des notifications dès l\'ouverture des engagements',
-    url: 'https://ffemonitor.fr',
-    siteName: 'FFE Monitor',
+    url: 'https://hoofs.fr',
+    siteName: 'Hoofs',
     locale: 'fr_FR',
     type: 'website',
   },

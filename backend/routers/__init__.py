@@ -1,4 +1,4 @@
-# FFE Monitor Routers
+# Hoofs Routers
 
 from backend.routers import auth, health, concours, stats, calendar
 

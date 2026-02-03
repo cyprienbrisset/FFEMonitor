@@ -1,4 +1,4 @@
-"""Middleware pour FFE Monitor."""
+"""Middleware pour Hoofs."""
 
 from backend.middleware.supabase_auth import (
     get_current_user,

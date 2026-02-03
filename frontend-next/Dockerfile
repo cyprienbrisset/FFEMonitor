@@ -1,5 +1,5 @@
 # ============================================
-# FFE Monitor - Frontend Next.js
+# Hoofs - Frontend Next.js
 # ============================================
 
 FROM node:20-alpine AS base

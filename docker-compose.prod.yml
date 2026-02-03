@@ -1,10 +1,10 @@
 # ============================================
-# FFE Monitor - Docker Compose pour Coolify
+# Hoofs - Docker Compose pour Coolify
 # Un seul conteneur avec Backend + Frontend
 # ============================================
 
 services:
-  ffemonitor:
+  hoofs:
     build:
       context: .
       dockerfile: Dockerfile.combined
@@ -21,7 +21,7 @@ services:
 
     # Volumes
     volumes:
-      - ffemonitor_data:/app/data
+      - hoofs_data:/app/data
 
     # Variables d'environnement
     environment:
@@ -50,4 +50,4 @@ services:
       start_period: 60s
 
 volumes:
-  ffemonitor_data:
+  hoofs_data:

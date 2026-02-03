@@ -1,5 +1,5 @@
 # ============================================
-# FFE Monitor - Docker Compose
+# Hoofs - Docker Compose
 # Backend + Frontend Next.js
 # ============================================
 #
@@ -16,7 +16,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: ffemonitor-backend
+    container_name: hoofs-backend
     restart: unless-stopped
 
     # Port interne (accès via frontend proxy)
@@ -25,7 +25,7 @@ services:
 
     # Volumes persistants
     volumes:
-      - ffemonitor_data:/app/data
+      - hoofs_data:/app/data
 
     # Variables d'environnement
     environment:
@@ -73,7 +73,7 @@ services:
         - NEXT_PUBLIC_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
         - NEXT_PUBLIC_API_URL=http://backend:8000
         - NEXT_PUBLIC_ONESIGNAL_APP_ID=${ONESIGNAL_APP_ID}
-    container_name: ffemonitor-frontend
+    container_name: hoofs-frontend
     restart: unless-stopped
 
     # Port exposé
@@ -109,5 +109,5 @@ services:
 
 # Volumes nommés
 volumes:
-  ffemonitor_data:
+  hoofs_data:
     driver: local

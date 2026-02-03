@@ -80,7 +80,7 @@ def main():
 
     print()
     print("=" * 50)
-    print("  FFE Monitor - Surveillance Concours FFE")
+    print("  Hoofs - Surveillance Concours FFE")
     print("=" * 50)
     print()
 

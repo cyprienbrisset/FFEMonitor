@@ -1,6 +1,6 @@
 {
-    "name": "FFE Monitor",
-    "short_name": "FFE Monitor",
+    "name": "Hoofs",
+    "short_name": "Hoofs",
     "description": "Surveillance des concours FFE - Recevez des notifications dès l'ouverture des engagements",
     "start_url": "/app",
     "id": "/app",
@@ -115,14 +115,14 @@
             "sizes": "1280x720",
             "type": "image/png",
             "form_factor": "wide",
-            "label": "FFE Monitor - Dashboard"
+            "label": "Hoofs - Dashboard"
         },
         {
             "src": "/screenshots/mobile.png",
             "sizes": "390x844",
             "type": "image/png",
             "form_factor": "narrow",
-            "label": "FFE Monitor - Mobile"
+            "label": "Hoofs - Mobile"
         }
     ],
     "related_applications": [],

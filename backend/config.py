@@ -1,5 +1,5 @@
 """
-Configuration de l'application FFE Monitor.
+Configuration de l'application Hoofs.
 Chargement des variables d'environnement via pydantic-settings.
 """
 

@@ -1,5 +1,5 @@
 """
-Middleware d'authentification Supabase pour FFE Monitor.
+Middleware d'authentification Supabase pour Hoofs.
 Vérifie les JWT tokens Supabase et injecte l'utilisateur dans les requêtes.
 """
 

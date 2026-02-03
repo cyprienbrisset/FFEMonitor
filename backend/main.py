@@ -1,5 +1,5 @@
 """
-Point d'entrée de l'application FFE Monitor.
+Point d'entrée de l'application Hoofs.
 Configuration FastAPI et gestion du cycle de vie.
 Utilise Supabase comme base de données unique.
 """
@@ -19,7 +19,7 @@ from backend.routers import health, concours, auth, stats, calendar, subscriptio
 from backend.utils.logger import setup_logger, get_logger
 
 # Configuration du logger principal
-setup_logger("ffemonitor", settings.log_level)
+setup_logger("hoofs", settings.log_level)
 logger = get_logger("main")
 
 # État global de l'application (partagé entre modules)
@@ -39,7 +39,7 @@ async def lifespan(app: FastAPI):
     Initialise les services au démarrage et les ferme à l'arrêt.
     """
     logger.info("=" * 50)
-    logger.info("FFE Monitor - Démarrage")
+    logger.info("Hoofs - Démarrage")
     logger.info("=" * 50)
 
     # Vérifier la configuration Supabase
@@ -112,12 +112,12 @@ async def lifespan(app: FastAPI):
     if app_state.get("notifier"):
         await app_state["notifier"].close()
 
-    logger.info("FFE Monitor arrêté proprement")
+    logger.info("Hoofs arrêté proprement")
 
 
 # Création de l'application FastAPI
 app = FastAPI(
-    title="FFE Monitor",
+    title="Hoofs",
     description="Surveillance d'ouverture des concours FFE",
     version="2.0.0",
     lifespan=lifespan,

@@ -1,5 +1,5 @@
 """
-Client Supabase pour FFE Monitor.
+Client Supabase pour Hoofs.
 Gère la connexion à Supabase pour l'authentification et la base de données.
 """
 
