@@ -82,8 +82,30 @@ export default function RootLayout({
                 await OneSignal.init({
                   appId: "${oneSignalAppId}",
                   serviceWorkerParam: { scope: "/" },
-                  serviceWorkerPath: "/sw.js",
+                  serviceWorkerPath: "/OneSignalSDKWorker.js",
                   allowLocalhostAsSecureOrigin: true,
+                  notifyButton: {
+                    enable: false,
+                  },
+                  promptOptions: {
+                    slidedown: {
+                      prompts: [
+                        {
+                          type: "push",
+                          autoPrompt: true,
+                          text: {
+                            actionMessage: "Recevoir les notifications d'ouverture des concours ?",
+                            acceptButton: "Autoriser",
+                            cancelButton: "Plus tard",
+                          },
+                          delay: {
+                            pageViews: 1,
+                            timeDelay: 3,
+                          },
+                        }
+                      ]
+                    }
+                  }
                 });
               });
             `}
