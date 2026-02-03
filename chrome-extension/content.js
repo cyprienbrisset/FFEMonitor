@@ -274,15 +274,22 @@
     // Injecter à côté des boutons "Ajouter au comparateur"
     async function injectButtonsNextToComparator(monitored) {
         // Chercher tous les boutons "Ajouter au comparateur" avec leur data-show-number
-        // Plusieurs sélecteurs pour couvrir différentes variations
+        // Format FFE: <button class="btn btn-ffec btn-grey comparator" data-action="add" data-show-number="479978">
         const comparatorButtons = document.querySelectorAll(
             'button.comparator[data-show-number], ' +
+            'button[data-action="add"][data-show-number], ' +
             '.comparator[data-show-number], ' +
             '[data-action="add"][data-show-number]'
         );
 
         if (comparatorButtons.length === 0) {
-            console.log('[Hoofs] Aucun bouton comparateur trouvé');
+            // Fallback: chercher tous les boutons .comparator et vérifier leur attribut
+            const allComparators = document.querySelectorAll('.comparator, button.comparator');
+            let foundWithNumber = 0;
+            allComparators.forEach(btn => {
+                if (btn.getAttribute('data-show-number')) foundWithNumber++;
+            });
+            console.log(`[Hoofs] Aucun bouton avec sélecteur principal, fallback: ${allComparators.length} .comparator dont ${foundWithNumber} avec data-show-number`);
             return 0;
         }
 
@@ -418,13 +425,25 @@
     async function init() {
         console.log('[Hoofs] Initialisation...');
 
-        // Attendre que la page soit complètement chargée
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Debug: Afficher l'état initial de la page
+        function debugPageState() {
+            const trRows = document.querySelectorAll('tr[data-number]');
+            const comparatorBtns = document.querySelectorAll('button.comparator[data-show-number]');
+            const dataShowNumberEls = document.querySelectorAll('[data-show-number]');
+            const allComparators = document.querySelectorAll('.comparator');
+            console.log(`[Hoofs] État page: ${trRows.length} tr[data-number], ${comparatorBtns.length} button.comparator[data-show-number], ${dataShowNumberEls.length} [data-show-number], ${allComparators.length} .comparator`);
 
-        // Debug: afficher ce qu'on trouve
-        const trRows = document.querySelectorAll('tr[data-number]');
-        const comparatorBtns = document.querySelectorAll('button.comparator, .comparator, [data-action="add"][data-show-number]');
-        console.log(`[Hoofs] Debug: ${trRows.length} tr[data-number], ${comparatorBtns.length} boutons comparateur`);
+            // Log les premiers éléments trouvés pour debug
+            if (comparatorBtns.length > 0) {
+                const first = comparatorBtns[0];
+                console.log(`[Hoofs] Premier bouton comparateur: numero=${first.getAttribute('data-show-number')}, visible=${first.offsetParent !== null}`);
+            }
+            return { trRows: trRows.length, comparatorBtns: comparatorBtns.length };
+        }
+
+        // Attendre que la page soit complètement chargée
+        await new Promise(resolve => setTimeout(resolve, 500));
+        let state = debugPageState();
 
         // Essayer d'injecter les boutons
         let injected = await injectButtons();
@@ -435,7 +454,8 @@
             await injectHoofsButton();
         }
 
-        // Observer les changements DOM pour les pages dynamiques
+        // Observer les changements DOM pour les pages dynamiques (résultats de recherche, AJAX, etc.)
+        let reinjectTimeout = null;
         const observer = new MutationObserver((mutations) => {
             let shouldReinject = false;
 
@@ -461,8 +481,12 @@
                                 shouldReinject = true;
                                 break;
                             }
-                            // Fallback: détecter par texte
-                            if (node.textContent && node.textContent.toLowerCase().includes('comparateur')) {
+                            // Détecter les tables
+                            if (node.tagName === 'TABLE' || node.tagName === 'TBODY') {
+                                shouldReinject = true;
+                                break;
+                            }
+                            if (node.querySelector && (node.querySelector('table') || node.querySelector('tbody'))) {
                                 shouldReinject = true;
                                 break;
                             }
@@ -473,7 +497,11 @@
             }
 
             if (shouldReinject) {
-                setTimeout(async () => {
+                // Debounce pour éviter trop d'appels
+                clearTimeout(reinjectTimeout);
+                reinjectTimeout = setTimeout(async () => {
+                    console.log('[Hoofs] Contenu dynamique détecté, réinjection...');
+                    debugPageState();
                     await injectButtons();
                 }, 300);
             }
@@ -484,12 +512,16 @@
             subtree: true,
         });
 
-        // Réessayer après 3 secondes si rien n'a été injecté (pour le contenu chargé dynamiquement)
-        if (!injected) {
-            setTimeout(async () => {
-                console.log('[Hoofs] Nouvelle tentative après 3s...');
-                await injectButtons();
-            }, 3000);
+        // Réessayer plusieurs fois pour le contenu chargé dynamiquement
+        const retryDelays = [1500, 3000, 5000];
+        for (const delay of retryDelays) {
+            if (injected) break;
+            await new Promise(resolve => setTimeout(resolve, delay - (retryDelays[retryDelays.indexOf(delay) - 1] || 500)));
+            console.log(`[Hoofs] Tentative après ${delay}ms...`);
+            state = debugPageState();
+            if (state.comparatorBtns > 0 || state.trRows > 0) {
+                injected = await injectButtons();
+            }
         }
     }
 
