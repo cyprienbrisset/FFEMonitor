@@ -18,7 +18,7 @@ export default function GuidePage() {
           Retour
         </Link>
         <div className="guide-logo">
-          <Image src="/logo_hoofs.svg" alt="Hoofs" width={48} height={48} />
+          <Image src="/logo_hoofs.svg" alt="Hoofs" width={200} height={200} />
         </div>
         <h1>Guide Utilisateur</h1>
         <p className="guide-subtitle">Tout savoir sur Hoofs</p>

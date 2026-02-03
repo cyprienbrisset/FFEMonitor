@@ -116,8 +116,8 @@ export default function DashboardPage() {
           <Image
             src="/logo_hoofs.svg"
             alt="Hoofs"
-            width={40}
-            height={40}
+            width={200}
+            height={200}
             className="logo"
           />
         </div>

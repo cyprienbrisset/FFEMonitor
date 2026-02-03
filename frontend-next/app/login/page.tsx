@@ -28,8 +28,8 @@ export default function LoginPage() {
               <Image
                 src="/logo_hoofs.svg"
                 alt="Hoofs Logo"
-                width={72}
-                height={72}
+                width={200}
+                height={200}
                 className="login-logo"
                 priority
               />
