@@ -15,11 +15,11 @@ async function generateIcons() {
   console.log('Creating icons directory...');
   await mkdir(iconsDir, { recursive: true });
 
-  // Read the actual logo.svg
-  const logoPath = join(publicDir, 'logo.svg');
+  // Read the actual logo_hoofs.svg
+  const logoPath = join(publicDir, 'logo_hoofs.svg');
   const logoSvg = await readFile(logoPath);
 
-  console.log('Generating regular icons from logo.svg...');
+  console.log('Generating regular icons from logo_hoofs.svg...');
 
   // Generate regular icons with background
   for (const size of sizes) {
