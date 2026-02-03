@@ -44,14 +44,17 @@ def _format_concours_response(c: dict) -> dict:
 
 
 @router.get("", response_model=ConcoursListResponse)
-async def list_concours() -> ConcoursListResponse:
+async def list_concours(
+    current_user = Depends(get_current_user),
+) -> ConcoursListResponse:
     """
-    Liste tous les concours surveillés.
+    Liste les concours surveillés par l'utilisateur connecté.
 
     Returns:
         Liste des concours avec leur statut actuel
     """
-    concours_list = await supabase.get_all_concours()
+    # Récupérer uniquement les concours auxquels l'utilisateur est abonné
+    concours_list = await supabase.get_user_subscribed_concours(current_user.id)
 
     return ConcoursListResponse(
         concours=[ConcoursResponse(**_format_concours_response(c)) for c in concours_list],
@@ -227,9 +230,12 @@ async def refresh_concours(numero: int) -> ConcoursResponse:
 
 
 @router.delete("/{numero}", response_model=MessageResponse)
-async def delete_concours(numero: int) -> MessageResponse:
+async def delete_concours(
+    numero: int,
+    current_user = Depends(get_current_user),
+) -> MessageResponse:
     """
-    Retire un concours de la surveillance.
+    Retire un concours de la surveillance de l'utilisateur.
 
     Args:
         numero: Numéro du concours à retirer
@@ -248,16 +254,17 @@ async def delete_concours(numero: int) -> MessageResponse:
             detail=f"Concours {numero} non trouvé",
         )
 
-    deleted = await supabase.delete_concours(numero)
+    # Supprimer uniquement l'abonnement de l'utilisateur (pas le concours lui-même)
+    deleted = await supabase.unsubscribe_from_concours(current_user.id, numero)
 
     if not deleted:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Erreur lors de la suppression du concours {numero}",
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Vous n'êtes pas abonné au concours {numero}",
         )
 
     return MessageResponse(
-        message=f"Concours {numero} retiré de la surveillance",
+        message=f"Concours {numero} retiré de votre surveillance",
         success=True,
     )
 

@@ -200,6 +200,34 @@ class SupabaseClient:
             logger.error(f"Erreur récupération concours: {e}")
             return []
 
+    async def get_user_subscribed_concours(self, user_id: str) -> list:
+        """Récupère les concours auxquels l'utilisateur est abonné."""
+        if not self._service_client:
+            return []
+
+        try:
+            # Récupérer les subscriptions avec les données des concours
+            response = (
+                self._service_client.table("subscriptions")
+                .select("concours_numero, notified, concours(*)")
+                .eq("user_id", user_id)
+                .execute()
+            )
+
+            # Extraire et formater les concours
+            concours_list = []
+            for sub in response.data or []:
+                concours_data = sub.get("concours")
+                if concours_data:
+                    # Ajouter l'info notified de la subscription
+                    concours_data["notifie"] = sub.get("notified", False)
+                    concours_list.append(concours_data)
+
+            return concours_list
+        except Exception as e:
+            logger.error(f"Erreur récupération concours utilisateur {user_id}: {e}")
+            return []
+
     async def update_concours_status(
         self, numero: int, is_open: bool, statut: str
     ) -> bool:
