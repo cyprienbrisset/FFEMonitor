@@ -1,6 +1,6 @@
 /**
  * Hoofs Chrome Extension - Content Script
- * Injecte des boutons "Ajouter à Hoofs" dans les tableaux de concours FFE
+ * Injecte des boutons "Ajouter à Hoofs" à côté des boutons "Ajouter au comparateur"
  * Ne s'active que sur https://ffecompet.ffe.com/concours*
  */
 
@@ -71,7 +71,33 @@
 
         if (isAdded) {
             button.classList.add('hoofs-btn-added');
+        } else {
+            button.classList.remove('hoofs-btn-added');
         }
+    }
+
+    // Extraire le numéro de concours depuis l'URL ou la page
+    function getConcoursNumber() {
+        // Essayer depuis l'URL: /concours/123456
+        const urlMatch = window.location.pathname.match(/\/concours\/(\d+)/);
+        if (urlMatch) {
+            return urlMatch[1];
+        }
+
+        // Essayer depuis un attribut datanumber sur la page
+        const elementWithData = document.querySelector('[datanumber]');
+        if (elementWithData) {
+            return elementWithData.getAttribute('datanumber');
+        }
+
+        // Essayer depuis le titre ou un élément contenant le numéro
+        const pageText = document.body.innerText;
+        const textMatch = pageText.match(/N°\s*(\d{9})/);
+        if (textMatch) {
+            return textMatch[1];
+        }
+
+        return null;
     }
 
     // Ajouter un concours à la surveillance
@@ -85,7 +111,7 @@
 
             if (!settings.apiUrl || !settings.accessToken) {
                 showNotification('Connectez-vous via l\'extension Hoofs', 'error');
-                setButtonContent(button, '+', 'Hoofs');
+                setButtonContent(button, '🐴', 'Ajouter à Hoofs');
                 button.disabled = false;
                 return;
             }
@@ -101,15 +127,15 @@
 
             if (response.status === 201 || response.status === 200) {
                 showNotification(`Concours ${numero} ajouté à Hoofs`, 'success');
-                setButtonContent(button, '✓', 'Ajouté', true);
+                setButtonContent(button, '✓', 'Ajouté à Hoofs', true);
                 button.disabled = true;
             } else if (response.status === 409) {
                 showNotification(`Concours ${numero} déjà surveillé`, 'info');
-                setButtonContent(button, '✓', 'Ajouté', true);
+                setButtonContent(button, '✓', 'Déjà dans Hoofs', true);
                 button.disabled = true;
             } else if (response.status === 401) {
                 showNotification('Session expirée - Reconnectez-vous via l\'extension', 'error');
-                setButtonContent(button, '+', 'Hoofs');
+                setButtonContent(button, '🐴', 'Ajouter à Hoofs');
                 button.disabled = false;
             } else {
                 throw new Error(`Erreur ${response.status}`);
@@ -117,7 +143,7 @@
         } catch (error) {
             console.error('[Hoofs] Erreur:', error);
             showNotification(`Erreur: ${error.message}`, 'error');
-            setButtonContent(button, '+', 'Hoofs');
+            setButtonContent(button, '🐴', 'Ajouter à Hoofs');
             button.disabled = false;
         }
     }
@@ -126,10 +152,11 @@
     function createHoofsButton(numero) {
         const btn = document.createElement('button');
         btn.className = 'hoofs-btn';
-        btn.title = 'Ajouter à Hoofs';
+        btn.title = 'Ajouter à la surveillance Hoofs';
         btn.dataset.numero = numero;
+        btn.type = 'button';
 
-        setButtonContent(btn, '+', 'Hoofs');
+        setButtonContent(btn, '🐴', 'Ajouter à Hoofs');
 
         btn.addEventListener('click', (e) => {
             e.preventDefault();
@@ -141,10 +168,10 @@
     }
 
     // Vérifier si un concours est déjà surveillé
-    async function checkIfMonitored(numeros) {
+    async function isConcoursMonitored(numero) {
         try {
             const settings = await chrome.storage.sync.get(['apiUrl', 'accessToken']);
-            if (!settings.apiUrl || !settings.accessToken) return new Set();
+            if (!settings.apiUrl || !settings.accessToken) return false;
 
             const response = await fetch(`${settings.apiUrl}/concours`, {
                 headers: { 'Authorization': `Bearer ${settings.accessToken}` },
@@ -152,72 +179,158 @@
 
             if (response.ok) {
                 const data = await response.json();
-                return new Set(data.concours.map(c => c.numero.toString()));
+                return data.concours.some(c => c.numero.toString() === numero.toString());
             }
         } catch (error) {
             console.error('[Hoofs] Erreur vérification:', error);
         }
-        return new Set();
+        return false;
     }
 
-    // Injecter les boutons dans les lignes de tableau
-    async function injectButtons() {
-        // Trouver tous les tr avec un attribut datanumber
-        const rows = document.querySelectorAll('tr[datanumber]');
+    // Injecter le bouton Hoofs à côté du bouton comparateur
+    async function injectHoofsButton() {
+        // Chercher le bouton "Ajouter au comparateur" ou similaire
+        const comparateurButtons = document.querySelectorAll('button, a.btn, .btn');
+        let targetButton = null;
 
-        if (rows.length === 0) {
-            console.log('[Hoofs] Aucune ligne avec datanumber trouvée');
+        for (const btn of comparateurButtons) {
+            const text = btn.textContent.toLowerCase();
+            if (text.includes('comparateur') || text.includes('comparer')) {
+                targetButton = btn;
+                break;
+            }
+        }
+
+        // Si pas trouvé, chercher dans les actions de la page
+        if (!targetButton) {
+            const actionContainers = document.querySelectorAll('.actions, .btn-group, .buttons, [class*="action"], [class*="button"]');
+            for (const container of actionContainers) {
+                if (container.querySelector('button, a.btn')) {
+                    targetButton = container.querySelector('button, a.btn');
+                    break;
+                }
+            }
+        }
+
+        // Extraire le numéro de concours
+        const numero = getConcoursNumber();
+
+        if (!numero) {
+            console.log('[Hoofs] Numéro de concours non trouvé');
             return;
         }
 
-        console.log(`[Hoofs] ${rows.length} concours trouvés`);
+        console.log(`[Hoofs] Concours détecté: ${numero}`);
+
+        // Vérifier si le bouton Hoofs existe déjà
+        if (document.querySelector('.hoofs-btn')) {
+            console.log('[Hoofs] Bouton déjà présent');
+            return;
+        }
+
+        // Créer le bouton Hoofs
+        const hoofsBtn = createHoofsButton(numero);
+
+        // Vérifier si déjà surveillé
+        const isMonitored = await isConcoursMonitored(numero);
+        if (isMonitored) {
+            setButtonContent(hoofsBtn, '✓', 'Déjà dans Hoofs', true);
+            hoofsBtn.disabled = true;
+        }
+
+        // Insérer le bouton
+        if (targetButton && targetButton.parentNode) {
+            // Insérer après le bouton comparateur
+            targetButton.parentNode.insertBefore(hoofsBtn, targetButton.nextSibling);
+            console.log('[Hoofs] Bouton inséré après le bouton comparateur');
+        } else {
+            // Fallback: créer un conteneur flottant
+            const container = document.createElement('div');
+            container.className = 'hoofs-floating-container';
+            container.appendChild(hoofsBtn);
+            document.body.appendChild(container);
+            console.log('[Hoofs] Bouton inséré en position flottante');
+        }
+    }
+
+    // Injecter dans les lignes de tableau (liste des concours)
+    async function injectButtonsInTable() {
+        const rows = document.querySelectorAll('tr[datanumber]');
+
+        if (rows.length === 0) {
+            return false;
+        }
+
+        console.log(`[Hoofs] ${rows.length} concours trouvés dans le tableau`);
 
         // Récupérer la liste des concours déjà surveillés
-        const numeros = Array.from(rows).map(row => row.getAttribute('datanumber'));
-        const monitored = await checkIfMonitored(numeros);
+        const settings = await chrome.storage.sync.get(['apiUrl', 'accessToken']);
+        let monitored = new Set();
 
-        // Ajouter l'en-tête de colonne si nécessaire
-        const headerRow = document.querySelector('thead tr, tr:first-child');
-        if (headerRow && !headerRow.querySelector('.hoofs-header')) {
-            const th = document.createElement('th');
-            th.className = 'hoofs-header';
-            th.textContent = 'Hoofs';
-            th.style.cssText = 'text-align: center; min-width: 80px;';
-            headerRow.appendChild(th);
+        if (settings.apiUrl && settings.accessToken) {
+            try {
+                const response = await fetch(`${settings.apiUrl}/concours`, {
+                    headers: { 'Authorization': `Bearer ${settings.accessToken}` },
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    monitored = new Set(data.concours.map(c => c.numero.toString()));
+                }
+            } catch (e) {
+                console.error('[Hoofs] Erreur récupération concours:', e);
+            }
         }
 
         // Injecter un bouton dans chaque ligne
         rows.forEach(row => {
             // Skip si déjà traité
-            if (row.querySelector('.hoofs-td')) return;
+            if (row.querySelector('.hoofs-btn')) return;
 
             const numero = row.getAttribute('datanumber');
             if (!numero) return;
 
-            const td = document.createElement('td');
-            td.className = 'hoofs-td';
-            td.style.cssText = 'text-align: center; vertical-align: middle;';
+            // Trouver la cellule des actions ou la dernière cellule
+            let targetCell = row.querySelector('td:last-child');
+            const actionCell = row.querySelector('td.actions, td:has(button), td:has(a.btn)');
+            if (actionCell) {
+                targetCell = actionCell;
+            }
+
+            if (!targetCell) return;
 
             const btn = createHoofsButton(numero);
 
             // Marquer comme déjà ajouté si nécessaire
             if (monitored.has(numero)) {
-                setButtonContent(btn, '✓', 'Ajouté', true);
+                setButtonContent(btn, '✓', 'Hoofs', true);
                 btn.disabled = true;
+            } else {
+                setButtonContent(btn, '🐴', 'Hoofs');
             }
 
-            td.appendChild(btn);
-            row.appendChild(td);
+            // Style compact pour le tableau
+            btn.style.marginLeft = '5px';
+            btn.style.fontSize = '11px';
+            btn.style.padding = '4px 8px';
+
+            targetCell.appendChild(btn);
         });
+
+        return true;
     }
 
     // Initialisation
     async function init() {
         // Attendre que la page soit complètement chargée
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, 1500));
 
-        // Injecter les boutons
-        await injectButtons();
+        // Essayer d'injecter dans le tableau (page liste)
+        const injectedInTable = await injectButtonsInTable();
+
+        // Si pas de tableau, essayer la page détail
+        if (!injectedInTable) {
+            await injectHoofsButton();
+        }
 
         // Observer les changements DOM pour les pages dynamiques
         const observer = new MutationObserver((mutations) => {
@@ -227,13 +340,16 @@
                 if (mutation.addedNodes.length > 0) {
                     for (const node of mutation.addedNodes) {
                         if (node.nodeType === 1) {
-                            // Vérifier si c'est un nouveau tr avec datanumber
                             if (node.tagName === 'TR' && node.hasAttribute('datanumber')) {
                                 shouldReinject = true;
                                 break;
                             }
-                            // Ou si ça contient des tr avec datanumber
                             if (node.querySelector && node.querySelector('tr[datanumber]')) {
+                                shouldReinject = true;
+                                break;
+                            }
+                            // Détecter aussi les nouveaux boutons comparateur
+                            if (node.textContent && node.textContent.toLowerCase().includes('comparateur')) {
                                 shouldReinject = true;
                                 break;
                             }
@@ -244,7 +360,12 @@
             }
 
             if (shouldReinject) {
-                setTimeout(injectButtons, 500);
+                setTimeout(async () => {
+                    const injected = await injectButtonsInTable();
+                    if (!injected) {
+                        await injectHoofsButton();
+                    }
+                }, 500);
             }
         });
 

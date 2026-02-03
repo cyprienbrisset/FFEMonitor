@@ -191,3 +191,20 @@
     letter-spacing: 0.5px;
     padding: 8px 12px !important;
 }
+
+/* ============================================================================
+   Conteneur flottant (fallback)
+   ============================================================================ */
+
+.hoofs-floating-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 999998;
+}
+
+.hoofs-floating-container .hoofs-btn {
+    padding: 12px 20px;
+    font-size: 14px;
+    box-shadow: 0 4px 16px rgba(139, 115, 85, 0.3);
+}
