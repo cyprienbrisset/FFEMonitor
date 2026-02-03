@@ -119,13 +119,15 @@ export function MobileNav({ onAddConcours, onOpenCalendar, onOpenProfile }: Mobi
     },
   ]
 
-  // Calculate orbital positions (quarter circle, bottom-right)
+  // Calculate orbital positions (quarter arc, optimized for thumb reach)
+  // iPhone 16 Pro: 6.3" display, optimized for one-handed use
   const getItemStyle = (index: number, total: number) => {
-    const startAngle = 180 // Start from left
-    const endAngle = 270 // End at top
+    const startAngle = 190 // Slightly past left for better thumb reach
+    const endAngle = 280 // Slightly past top
     const angleStep = (endAngle - startAngle) / (total - 1)
     const angle = startAngle + angleStep * index
-    const radius = 110 // Distance from center - increased for better spacing
+    // Radius optimized for iPhone 16 Pro thumb reach zone
+    const radius = 95 // Closer for easier thumb access
 
     const x = Math.cos((angle * Math.PI) / 180) * radius
     const y = Math.sin((angle * Math.PI) / 180) * radius
@@ -133,7 +135,7 @@ export function MobileNav({ onAddConcours, onOpenCalendar, onOpenProfile }: Mobi
     return {
       '--item-x': `${x}px`,
       '--item-y': `${y}px`,
-      '--item-delay': `${index * 50}ms`,
+      '--item-delay': `${index * 40}ms`, // Slightly faster cascade
     } as React.CSSProperties
   }
 

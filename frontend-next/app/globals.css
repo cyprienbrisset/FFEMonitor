@@ -1272,8 +1272,20 @@ body {
 }
 
 /* ============================================================================
-   Responsive Design
+   Responsive Design — iPhone 16 Pro & PWA Optimized
    ============================================================================ */
+
+/* PWA-specific styles */
+@media (display-mode: standalone) {
+    html, body {
+        overscroll-behavior: none;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .app-container {
+        min-height: 100dvh;
+    }
+}
 
 /* Large tablets and small desktops */
 @media (max-width: 1024px) {
@@ -1296,55 +1308,88 @@ body {
     }
 }
 
-/* Tablets */
+/* Tablets & Mobile — Core responsive breakpoint */
 @media (max-width: 768px) {
     :root {
         --spacing-md: 16px;
         --spacing-lg: 24px;
+        --radius-lg: 24px;
+        --radius-md: 20px;
+    }
+
+    html {
+        /* Use dynamic viewport height for PWA */
+        min-height: 100dvh;
+        min-height: -webkit-fill-available;
+    }
+
+    body {
+        min-height: 100dvh;
+        min-height: -webkit-fill-available;
     }
 
     .app-container {
         padding: var(--spacing-sm);
-        padding-bottom: 80px;
+        padding-top: max(var(--spacing-sm), env(safe-area-inset-top, 0px));
+        padding-bottom: calc(100px + env(safe-area-inset-bottom, 20px));
+        min-height: 100dvh;
     }
 
+    /* Mobile Header — Compact & Clean */
     .header {
-        flex-wrap: wrap;
-        padding: var(--spacing-md);
-        gap: var(--spacing-sm);
+        flex-wrap: nowrap;
+        padding: 12px 16px;
+        gap: 12px;
+        margin-bottom: var(--spacing-md);
+        position: sticky;
+        top: env(safe-area-inset-top, 0px);
+        z-index: 50;
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        background: rgba(255, 255, 255, 0.85);
     }
 
     .logo-wrapper {
+        width: 44px;
+        height: 44px;
+        flex-shrink: 0;
+    }
+
+    .logo {
         width: 36px;
         height: 36px;
     }
 
+    .header-text {
+        flex: 1;
+        min-width: 0;
+    }
+
     .header-text h1 {
-        font-size: 1.5rem;
+        font-size: 1.25rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
-    .header-actions {
-        width: 100%;
-        justify-content: flex-end;
-        gap: 8px;
-    }
-
-    .btn-guide span,
-    .btn-extension span,
-    .btn-profile span,
-    .btn-logout span {
+    .tagline {
         display: none;
     }
 
-    .btn-guide,
-    .btn-extension,
-    .btn-profile,
-    .btn-logout {
-        padding: 10px;
-        min-width: 44px;
-        justify-content: center;
+    /* Hide desktop header actions - use mobile FAB instead */
+    .header-actions {
+        display: none !important;
     }
 
+    /* Show only status indicator in header */
+    .header .status-indicator {
+        display: flex !important;
+        width: 40px;
+        height: 40px;
+        flex-shrink: 0;
+    }
+
+    /* Bento Grid — Single column mobile */
     .bento-grid {
         grid-template-columns: 1fr;
         gap: var(--spacing-md);
@@ -1352,74 +1397,306 @@ body {
 
     .card-add,
     .card-list,
-    .card-calendar {
+    .card-calendar,
+    .card-stats,
+    .card-status {
         grid-column: span 1;
     }
 
-    .concours-grid {
-        grid-template-columns: 1fr;
+    /* Cards — Mobile optimized */
+    .bento-card {
+        padding: var(--spacing-md);
+        border-radius: var(--radius-md);
     }
 
-    /* Calendar responsive */
-    .calendar-nav {
+    .card-header {
+        margin-bottom: var(--spacing-sm);
+    }
+
+    .card-header h2 {
+        font-size: 1.1rem;
+    }
+
+    /* Stats Card — Horizontal on mobile */
+    .card-stats {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+        padding: var(--spacing-md) var(--spacing-lg);
+    }
+
+    .stats-number {
+        font-size: 3rem;
+    }
+
+    .stats-label {
+        font-size: 0.85rem;
+        text-align: right;
+        max-width: 120px;
+    }
+
+    .stats-decoration {
+        display: none;
+    }
+
+    /* Add Form — Full width stacked */
+    .add-form {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .input-wrapper input {
+        height: 52px;
+        font-size: 16px; /* Prevent iOS zoom */
+        border-radius: var(--radius-md);
+    }
+
+    .btn-add {
+        width: 100%;
+        height: 52px;
+        justify-content: center;
+        font-size: 1rem;
+        border-radius: var(--radius-md);
+    }
+
+    /* Concours Grid — Touch-optimized cards */
+    .concours-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .concours-card {
+        padding: 16px;
+        border-radius: var(--radius-md);
+        border-left-width: 5px;
+        /* Swipeable feel */
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .concours-nom {
+        font-size: 1.05rem;
+        line-height: 1.3;
+    }
+
+    .concours-subtitle {
+        font-size: 0.75rem;
+        margin-top: 4px;
+    }
+
+    .concours-meta {
+        flex-direction: row;
         flex-wrap: wrap;
+        gap: 8px;
+        margin: 12px 0;
+    }
+
+    .concours-badge {
+        font-size: 0.7rem;
+        padding: 5px 12px;
+    }
+
+    .btn-delete {
+        width: 44px;
+        height: 44px;
+        min-width: 44px;
+    }
+
+    .btn-access {
+        height: 44px;
+        padding: 0 20px;
+        font-size: 0.85rem;
+    }
+
+    /* Calendar — Vertical stack on mobile */
+    .calendar-layout {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+
+    .calendar-nav {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        gap: 8px;
+        align-items: center;
+    }
+
+    .calendar-current {
+        justify-content: center;
+    }
+
+    .calendar-month {
+        font-size: 1.1rem;
     }
 
     .calendar-today-btn {
-        order: -1;
+        grid-column: 1 / -1;
         width: 100%;
-        margin-bottom: 8px;
+        height: 44px;
+        margin-top: 4px;
+    }
+
+    .calendar-nav-btn {
+        width: 44px;
+        height: 44px;
     }
 
     .calendar-day-header {
-        font-size: 0.65rem;
-        padding: 4px 2px;
+        font-size: 0.7rem;
+        padding: 8px 4px;
+        font-weight: 600;
     }
 
     .calendar-day {
-        min-height: 36px;
+        min-height: 48px;
+        aspect-ratio: auto;
+        border-radius: 12px;
     }
 
     .calendar-day .day-number {
-        font-size: 0.75rem;
+        font-size: 0.9rem;
     }
 
-    .plan-comparison {
-        flex-direction: column;
+    .calendar-right {
+        min-height: 200px;
     }
 
-    /* Modal responsive */
+    .calendar-events {
+        max-height: 280px;
+        border-radius: var(--radius-md);
+    }
+
+    .events-title {
+        font-size: 1rem;
+    }
+
+    .event-item {
+        padding: 14px 16px;
+        min-height: 54px;
+        border-radius: 12px;
+    }
+
+    .event-name {
+        font-size: 0.9rem;
+    }
+
+    /* Modal — Bottom sheet style on mobile */
+    .modal-overlay {
+        align-items: flex-end;
+        padding: 0;
+    }
+
     .modal-content {
-        width: 95%;
-        max-height: 85vh;
+        width: 100%;
+        max-width: 100%;
+        max-height: 90dvh;
+        border-radius: var(--radius-lg) var(--radius-lg) 0 0;
         padding: var(--spacing-md);
+        padding-bottom: calc(var(--spacing-md) + env(safe-area-inset-bottom, 20px));
+        animation: slideUpSheet 0.3s ease;
+    }
+
+    @keyframes slideUpSheet {
+        from {
+            opacity: 0;
+            transform: translateY(100%);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .modal-close {
+        top: 12px;
+        right: 12px;
+        width: 44px;
+        height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* Profile Modal — Mobile optimized */
+    .profile-header {
+        padding-bottom: var(--spacing-md);
+    }
+
+    .profile-avatar {
+        width: 72px;
+        height: 72px;
     }
 
     .profile-tabs {
-        flex-direction: column;
-        gap: 2px;
+        flex-direction: row;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        gap: 4px;
+        padding: 4px;
+        margin: 0 -4px;
     }
 
     .profile-tab {
-        padding: 12px 16px;
+        flex: none;
+        padding: 12px 20px;
+        white-space: nowrap;
+        min-height: 44px;
     }
 
     .profile-form {
         flex-direction: column;
+        gap: 12px;
+    }
+
+    .profile-input {
+        height: 48px;
+        font-size: 16px; /* Prevent iOS zoom */
+        border-radius: 12px;
+    }
+
+    .btn-primary-small {
+        height: 48px;
+        font-size: 0.9rem;
+        border-radius: 12px;
     }
 
     .notification-buttons {
         flex-direction: column;
+        gap: 10px;
     }
 
     .btn-test-notif {
+        height: 52px;
         justify-content: center;
+        border-radius: 12px;
+    }
+
+    .plan-comparison {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .plan-item {
+        padding: 16px;
+        border-radius: 12px;
+    }
+
+    .danger-zone {
+        margin: var(--spacing-lg) calc(var(--spacing-md) * -1) calc(var(--spacing-md) * -1);
+        padding: var(--spacing-md) !important;
+        padding-bottom: calc(var(--spacing-md) + env(safe-area-inset-bottom, 0px)) !important;
+        border-radius: 0;
+    }
+
+    .btn-danger {
+        height: 52px;
+        border-radius: 12px;
     }
 
     /* Extension modal */
     .extension-modal .step {
         flex-direction: column;
         text-align: center;
+        gap: 12px;
     }
 
     .step-number {
@@ -1428,83 +1705,55 @@ body {
 
     .btn-download-extension {
         width: 100%;
+        height: 52px;
         justify-content: center;
     }
 
-    /* Footer */
+    /* Footer — Hidden on mobile, using FAB */
     .footer {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        background: var(--white);
-        border-top: 1px solid var(--cream-dark);
-        padding: var(--spacing-sm);
-        z-index: 100;
+        display: none;
     }
 }
 
-/* Mobile phones */
+/* iPhone Pro / Modern smartphones (390px+) */
 @media (max-width: 480px) {
     .header {
-        padding: var(--spacing-sm);
-        justify-content: center;
+        padding: 10px 14px;
     }
 
-    .header-text {
-        display: none;
-    }
-
-    .header-actions {
-        display: none;
+    .header-text h1 {
+        font-size: 1.15rem;
     }
 
     .logo-wrapper {
-        width: 80px;
-        height: 80px;
+        width: 40px;
+        height: 40px;
     }
 
-    .status-indicator {
-        margin-left: 4px;
+    .logo {
+        width: 32px;
+        height: 32px;
     }
 
     .bento-card {
-        padding: var(--spacing-md);
+        padding: 14px;
     }
 
     .card-header h2 {
-        font-size: 1.1rem;
+        font-size: 1rem;
     }
 
     .card-icon {
         font-size: 1rem;
     }
 
+    /* Larger stats for impact */
     .stats-number {
-        font-size: 2.5rem;
+        font-size: 2.75rem;
     }
 
     .stats-label {
-        font-size: 0.875rem;
-    }
-
-    /* Add form responsive */
-    .add-form {
-        flex-direction: column;
-    }
-
-    .input-wrapper {
-        width: 100%;
-    }
-
-    .btn-add {
-        width: 100%;
-        justify-content: center;
-    }
-
-    /* Concours card responsive */
-    .concours-card {
-        padding: var(--spacing-md);
+        font-size: 0.8rem;
     }
 
     .concours-nom {
@@ -1515,51 +1764,44 @@ body {
         font-size: 0.7rem;
     }
 
-    .concours-meta {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 6px;
-    }
-
     .concours-badge {
         font-size: 0.65rem;
+        padding: 4px 10px;
     }
 
-    /* Calendar mobile */
     .calendar-month {
         font-size: 1rem;
     }
 
-    .calendar-nav-btn {
-        width: 32px;
-        height: 32px;
+    .calendar-day {
+        min-height: 44px;
     }
 
-    .events-list {
-        gap: 6px;
+    .calendar-day .day-number {
+        font-size: 0.85rem;
     }
 
     .event-item {
-        padding: 10px 12px;
+        padding: 12px 14px;
     }
 
     .event-name {
-        font-size: 0.8rem;
+        font-size: 0.85rem;
     }
 
-    /* Profile modal mobile */
+    /* Profile adjustments */
     .profile-avatar {
         width: 64px;
         height: 64px;
     }
 
     .profile-avatar svg {
-        width: 36px;
-        height: 36px;
+        width: 32px;
+        height: 32px;
     }
 
     .profile-modal h2 {
-        font-size: 1.25rem;
+        font-size: 1.2rem;
     }
 
     .profile-field label {
@@ -1573,48 +1815,56 @@ body {
     .profile-section h3 {
         font-size: 0.85rem;
     }
+}
 
-    .profile-input {
+/* Small phones (iPhone SE, older devices) */
+@media (max-width: 375px) {
+    .app-container {
+        padding: 10px;
+        padding-top: max(10px, env(safe-area-inset-top, 0px));
+        padding-bottom: calc(90px + env(safe-area-inset-bottom, 16px));
+    }
+
+    .header {
+        padding: 8px 12px;
+        border-radius: var(--radius-md);
+    }
+
+    .header-text h1 {
+        font-size: 1.1rem;
+    }
+
+    .stats-number {
+        font-size: 2.25rem;
+    }
+
+    .bento-card {
         padding: 12px;
-        font-size: 16px; /* Prevent zoom on iOS */
+        border-radius: 16px;
     }
 
-    .btn-primary-small,
-    .btn-danger {
-        padding: 12px 16px;
-        font-size: 0.9rem;
+    .calendar-day {
+        min-height: 40px;
     }
 
-    .danger-zone {
-        margin-left: calc(var(--spacing-md) * -1);
-        margin-right: calc(var(--spacing-md) * -1);
-        padding: var(--spacing-md) !important;
-        margin-bottom: calc(var(--spacing-md) * -1);
+    .calendar-day .day-number {
+        font-size: 0.8rem;
     }
 
-    /* Footer mobile */
-    .footer-content {
-        font-size: 0.75rem;
+    .concours-card {
+        padding: 12px;
     }
 
-    .footer-divider {
-        display: none;
-    }
-
-    .footer-refresh {
-        display: none;
+    .btn-add,
+    .btn-access {
+        height: 48px;
     }
 }
 
 /* Extra small screens */
 @media (max-width: 360px) {
     .header-text h1 {
-        font-size: 1.1rem;
-    }
-
-    .btn-guide,
-    .btn-extension {
-        display: none;
+        font-size: 1rem;
     }
 
     .stats-number {
@@ -1622,18 +1872,23 @@ body {
     }
 
     .calendar-day {
-        min-height: 32px;
+        min-height: 36px;
     }
 
     .calendar-day .day-number {
-        font-size: 0.65rem;
+        font-size: 0.75rem;
     }
 }
 
 /* Landscape mobile */
 @media (max-height: 500px) and (orientation: landscape) {
+    .app-container {
+        padding-bottom: 80px;
+    }
+
     .modal-content {
-        max-height: 95vh;
+        max-height: 95dvh;
+        border-radius: var(--radius-lg);
     }
 
     .profile-header {
@@ -1648,20 +1903,35 @@ body {
     }
 }
 
-/* Safe area for notched devices */
+/* ============================================================================
+   Safe Area Handling — iPhone 16 Pro Dynamic Island & Home Indicator
+   ============================================================================ */
 @supports (padding: max(0px)) {
     .app-container {
-        padding-left: max(var(--spacing-md), env(safe-area-inset-left));
-        padding-right: max(var(--spacing-md), env(safe-area-inset-right));
+        padding-left: max(var(--spacing-sm), env(safe-area-inset-left));
+        padding-right: max(var(--spacing-sm), env(safe-area-inset-right));
+        padding-top: max(var(--spacing-sm), env(safe-area-inset-top));
     }
 
-    .footer {
-        padding-bottom: max(var(--spacing-sm), env(safe-area-inset-bottom));
+    .header {
+        margin-left: calc(-1 * max(0px, calc(env(safe-area-inset-left) - var(--spacing-sm))));
+        margin-right: calc(-1 * max(0px, calc(env(safe-area-inset-right) - var(--spacing-sm))));
+        padding-left: max(16px, env(safe-area-inset-left));
+        padding-right: max(16px, env(safe-area-inset-right));
+    }
+
+    @media (max-width: 768px) {
+        .modal-content {
+            padding-bottom: max(var(--spacing-md), calc(env(safe-area-inset-bottom) + 16px));
+        }
     }
 }
 
-/* Touch improvements */
+/* ============================================================================
+   Touch & Interaction Improvements
+   ============================================================================ */
 @media (hover: none) and (pointer: coarse) {
+    /* Minimum 44pt touch targets (Apple HIG) */
     .btn-add,
     .btn-delete,
     .btn-access,
@@ -1675,15 +1945,70 @@ body {
     .btn-test-notif,
     .calendar-nav-btn,
     .calendar-today-btn,
-    .calendar-day,
+    .calendar-day:not(.empty),
     .profile-tab,
-    .concours-card {
+    .auth-tab,
+    .btn-login,
+    .btn-test {
         min-height: 44px;
     }
 
     .btn-delete {
         min-width: 44px;
         min-height: 44px;
+    }
+
+    /* Disable hover states, use active instead */
+    .concours-card:hover,
+    .bento-card:hover,
+    .event-item:hover {
+        transform: none;
+        box-shadow: var(--shadow-sm);
+    }
+
+    .btn-access:hover,
+    .btn-delete:hover,
+    .btn-add:hover,
+    .btn-primary-small:hover,
+    .btn-danger:hover {
+        transform: none;
+    }
+
+    /* Active press states */
+    .concours-card:active {
+        transform: scale(0.98);
+        transition: transform 0.1s ease;
+    }
+
+    .bento-card:active {
+        transform: scale(0.995);
+        transition: transform 0.1s ease;
+    }
+
+    .btn-access:active,
+    .btn-delete:active,
+    .btn-add:active,
+    .btn-primary-small:active,
+    .btn-danger:active,
+    .btn-test-notif:active,
+    .btn-test:active {
+        transform: scale(0.96);
+        transition: transform 0.1s ease;
+    }
+
+    .calendar-day:active:not(.empty) {
+        transform: scale(0.92);
+        transition: transform 0.1s ease;
+    }
+
+    .event-item:active {
+        transform: scale(0.98);
+        transition: transform 0.1s ease;
+    }
+
+    /* Remove tap highlight */
+    button, a, input, select, textarea {
+        -webkit-tap-highlight-color: transparent;
     }
 }
 
@@ -2560,29 +2885,30 @@ body {
 }
 
 /* ============================================================================
-   Mobile Navigation - Orbital FAB Menu
+   Mobile Navigation - Orbital FAB Menu (iPhone 16 Pro Optimized)
    ============================================================================ */
 .mobile-nav {
     display: none;
     position: fixed;
-    bottom: 24px;
-    right: 24px;
+    bottom: 28px;
+    right: 20px;
     z-index: 1000;
 }
 
 @media (max-width: 768px) {
     .mobile-nav {
         display: block;
+        /* Safe area support for iPhone home indicator */
+        bottom: calc(28px + env(safe-area-inset-bottom, 0px));
+        right: max(20px, env(safe-area-inset-right, 0px));
     }
+}
 
-    /* Hide desktop header actions on mobile */
-    .header-actions {
-        display: none !important;
-    }
-
-    /* Adjust main content for mobile nav */
-    .dashboard-content {
-        padding-bottom: 100px;
+/* Extra padding for larger iPhones */
+@media (max-width: 480px) {
+    .mobile-nav {
+        bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+        right: max(16px, env(safe-area-inset-right, 0px));
     }
 }
 
@@ -2596,44 +2922,52 @@ body {
 }
 
 .mobile-nav.open .mobile-nav-backdrop {
-    background: rgba(0, 0, 0, 0.2);
+    background: rgba(45, 45, 45, 0.25);
     pointer-events: auto;
-    backdrop-filter: blur(2px);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
 }
 
 .mobile-nav.closing .mobile-nav-backdrop {
     background: rgba(0, 0, 0, 0);
 }
 
-/* Main FAB Button */
+/* Main FAB Button — 60pt for easy thumb reach */
 .mobile-nav-fab {
     position: relative;
-    width: 60px;
-    height: 60px;
+    width: 64px;
+    height: 64px;
     border: none;
     border-radius: 50%;
     background: linear-gradient(145deg, var(--pastel-sage), var(--pastel-sage-dark));
     box-shadow:
-        0 4px 20px rgba(0, 0, 0, 0.15),
+        0 6px 24px rgba(107, 155, 122, 0.35),
         0 2px 8px rgba(0, 0, 0, 0.1),
-        inset 0 1px 0 rgba(255, 255, 255, 0.3);
+        inset 0 1px 0 rgba(255, 255, 255, 0.4);
     cursor: pointer;
     z-index: 10;
     transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
     -webkit-tap-highlight-color: transparent;
+    /* Hardware acceleration for smooth animations */
+    will-change: transform, background;
+    transform: translateZ(0);
 }
 
 .mobile-nav-fab:active {
-    transform: scale(0.92);
+    transform: scale(0.92) translateZ(0);
 }
 
 .mobile-nav.open .mobile-nav-fab {
     background: linear-gradient(145deg, var(--pastel-coral), var(--pastel-coral-dark));
-    transform: rotate(45deg);
+    transform: rotate(45deg) translateZ(0);
+    box-shadow:
+        0 6px 24px rgba(192, 112, 112, 0.35),
+        0 2px 8px rgba(0, 0, 0, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 
 .mobile-nav.closing .mobile-nav-fab {
-    transform: rotate(0deg);
+    transform: rotate(0deg) translateZ(0);
 }
 
 /* FAB Icon */
@@ -2646,10 +2980,11 @@ body {
 }
 
 .fab-icon svg {
-    width: 24px;
-    height: 24px;
+    width: 26px;
+    height: 26px;
     color: var(--charcoal);
     transition: all 0.3s ease;
+    stroke-width: 2.5;
 }
 
 .mobile-nav.open .fab-icon svg {
@@ -2664,19 +2999,21 @@ body {
     border: 2px solid var(--pastel-sage-dark);
     opacity: 0;
     animation: none;
+    pointer-events: none;
 }
 
 .mobile-nav.open .fab-ripple {
     animation: fab-pulse 1.5s ease-out infinite;
+    border-color: var(--pastel-coral-dark);
 }
 
 @keyframes fab-pulse {
     0% {
         transform: scale(1);
-        opacity: 0.5;
+        opacity: 0.6;
     }
     100% {
-        transform: scale(1.5);
+        transform: scale(1.6);
         opacity: 0;
     }
 }
@@ -2686,22 +3023,24 @@ body {
     position: absolute;
     bottom: 0;
     right: 0;
-    width: 60px;
-    height: 60px;
+    width: 64px;
+    height: 64px;
     pointer-events: none;
 }
 
-/* Orbital Menu Items */
+/* Orbital Menu Items — 56pt touch targets */
 .orbital-item {
     position: absolute;
-    bottom: 0;
-    right: 0;
-    width: 52px;
-    height: 52px;
+    bottom: 4px;
+    right: 4px;
+    width: 56px;
+    height: 56px;
     border: none;
     border-radius: 50%;
     background: var(--item-color, var(--cream));
-    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.12);
+    box-shadow:
+        0 4px 16px rgba(0, 0, 0, 0.12),
+        0 1px 4px rgba(0, 0, 0, 0.08);
     cursor: pointer;
     display: flex;
     flex-direction: column;
@@ -2714,6 +3053,8 @@ body {
     transition-delay: var(--item-delay, 0ms);
     pointer-events: none;
     -webkit-tap-highlight-color: transparent;
+    /* Hardware acceleration */
+    will-change: transform, opacity;
 }
 
 .mobile-nav.open .orbital-item {
@@ -2729,7 +3070,8 @@ body {
 }
 
 .orbital-item:active {
-    transform: translate(var(--item-x), var(--item-y)) scale(0.9) !important;
+    transform: translate(var(--item-x), var(--item-y)) scale(0.88) !important;
+    transition: transform 0.1s ease;
 }
 
 /* Orbital Item Icon */
@@ -2740,302 +3082,256 @@ body {
 }
 
 .orbital-icon svg {
-    width: 20px;
-    height: 20px;
+    width: 22px;
+    height: 22px;
     color: var(--charcoal);
+}
+
+/* Orbital item labels on hover/focus (accessibility) */
+.orbital-item::after {
+    content: attr(title);
+    position: absolute;
+    right: calc(100% + 12px);
+    top: 50%;
+    transform: translateY(-50%);
+    background: var(--charcoal);
+    color: var(--cream);
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+}
+
+.orbital-item:focus::after,
+.orbital-item:focus-visible::after {
+    opacity: 1;
+}
+
+/* Hide labels on touch devices - they just get in the way */
+@media (hover: none) {
+    .orbital-item::after {
+        display: none;
+    }
 }
 
 
 /* ============================================================================
-   Mobile-Optimized Dashboard Styles
+   Empty State — Mobile Optimized
    ============================================================================ */
 @media (max-width: 768px) {
-    /* Dashboard Layout */
-    .dashboard {
-        padding: 16px;
-        padding-bottom: 120px;
-    }
-
-    .dashboard-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 12px;
-        margin-bottom: 20px;
-    }
-
-    .dashboard-header h1 {
-        font-size: 1.5rem;
-    }
-
-    /* Bento Grid */
-    .bento-grid {
-        grid-template-columns: 1fr;
-        gap: 16px;
-    }
-
-    .bento-card {
-        padding: 20px;
-        border-radius: var(--radius-md);
-    }
-
-    .card-header {
-        margin-bottom: 16px;
-    }
-
-    .card-header h2 {
-        font-size: 1rem;
-    }
-
-    /* Add Concours Card */
-    .card-add {
-        padding: 16px;
-    }
-
-    .add-form {
-        flex-direction: column;
-        gap: 12px;
-    }
-
-    .add-form input {
-        width: 100%;
-        height: 52px;
-        font-size: 1rem;
-    }
-
-    .btn-add {
-        width: 100%;
-        height: 52px;
-        justify-content: center;
-        font-size: 1rem;
-    }
-
-    /* Concours Cards */
-    .concours-grid {
-        gap: 12px;
-    }
-
-    .concours-card {
-        padding: 16px;
-        min-height: auto;
-    }
-
-    .concours-number {
-        font-size: 0.7rem;
-    }
-
-    .concours-name {
-        font-size: 0.95rem;
-        -webkit-line-clamp: 2;
-    }
-
-    .concours-meta {
-        gap: 8px;
-    }
-
-    .concours-meta-item {
-        font-size: 0.75rem;
-    }
-
-    .concours-actions {
-        padding-top: 12px;
-        gap: 8px;
-    }
-
-    .btn-access,
-    .btn-delete {
-        height: 44px;
-        font-size: 0.875rem;
-        padding: 0 16px;
-    }
-
-    .btn-access {
-        flex: 1;
-    }
-
-    .btn-delete {
-        width: 44px;
-        min-width: 44px;
-        padding: 0;
-    }
-
-    /* Calendar */
-    .calendar-layout {
-        grid-template-columns: 1fr;
-        gap: 16px;
-    }
-
-    .calendar-nav {
-        flex-wrap: wrap;
-        gap: 8px;
-    }
-
-    .calendar-month {
-        font-size: 1.1rem;
-    }
-
-    .calendar-today-btn {
-        order: 5;
-        flex: 1 0 100%;
-        margin-top: 4px;
-    }
-
-    .calendar-day {
-        min-height: 48px;
-    }
-
-    .calendar-day .day-number {
-        font-size: 0.9rem;
-    }
-
-    .calendar-right {
-        min-height: 200px;
-    }
-
-    .calendar-events {
-        max-height: 300px;
-    }
-
-    /* Stats Card */
-    .stats-grid {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 12px;
-    }
-
-    .stat-item {
-        padding: 16px;
-    }
-
-    .stat-value {
-        font-size: 1.5rem;
-    }
-
-    .stat-label {
-        font-size: 0.7rem;
-    }
-
-    /* Status Bar */
-    .status-bar {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 8px;
-        padding: 16px;
-    }
-
-    .status-item {
-        font-size: 0.8rem;
-    }
-
-    /* Modal Adjustments */
-    .modal-overlay {
-        padding: 16px;
-        align-items: flex-end;
-    }
-
-    .modal-content {
-        max-width: 100%;
-        max-height: 85vh;
-        border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-        margin-bottom: 0;
-    }
-
-    /* Empty State */
     .empty-state {
-        padding: 32px 16px;
+        padding: 40px 20px;
     }
 
     .empty-icon {
-        width: 80px;
-        height: 80px;
+        width: 72px;
+        height: 72px;
+        margin-bottom: var(--spacing-md);
     }
 
     .empty-title {
-        font-size: 1rem;
+        font-size: 1.1rem;
     }
 
     .empty-hint {
-        font-size: 0.8rem;
+        font-size: 0.85rem;
+        max-width: 280px;
     }
 }
 
-/* Extra small devices */
-@media (max-width: 375px) {
-    .dashboard {
-        padding: 12px;
+/* ============================================================================
+   Login Page — Mobile PWA Optimized
+   ============================================================================ */
+@media (max-width: 768px) {
+    .login-screen {
+        min-height: 100dvh;
+        padding: var(--spacing-md);
+        padding-top: calc(var(--spacing-md) + env(safe-area-inset-top, 0px));
+        padding-bottom: calc(var(--spacing-md) + env(safe-area-inset-bottom, 0px));
+        align-items: flex-start;
+        padding-top: 15vh;
     }
 
-    .bento-card {
-        padding: 16px;
+    .login-container {
+        padding: 0;
+        max-width: 100%;
     }
 
-    .mobile-nav {
-        bottom: 16px;
-        right: 16px;
+    .login-card {
+        padding: var(--spacing-lg);
+        border-radius: var(--radius-lg);
     }
 
-    .mobile-nav-fab {
+    .login-logo {
+        width: 64px;
+        height: 64px;
+    }
+
+    .login-tagline {
+        font-size: 1.1rem;
+    }
+
+    .auth-tabs {
+        margin-bottom: var(--spacing-md);
+    }
+
+    .auth-tab {
+        padding: 12px var(--spacing-md);
+        min-height: 44px;
+    }
+
+    .form-group input {
+        height: 52px;
+        font-size: 16px; /* Prevent iOS zoom */
+        border-radius: var(--radius-md);
+    }
+
+    .btn-login {
+        height: 52px;
+        font-size: 1rem;
+        border-radius: var(--radius-md);
+    }
+
+    .login-footer {
+        padding-top: var(--spacing-md);
+        margin-top: var(--spacing-md);
+    }
+
+    .plan-badges {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .decoration-circle {
+        opacity: 0.3;
+    }
+
+    .decoration-circle.circle-1 {
+        width: 150px;
+        height: 150px;
+        top: -30px;
+        right: -30px;
+    }
+
+    .decoration-circle.circle-2 {
+        width: 100px;
+        height: 100px;
+        bottom: -20px;
+        left: -20px;
+    }
+
+    .decoration-circle.circle-3 {
+        display: none;
+    }
+}
+
+@media (max-width: 480px) {
+    .login-screen {
+        padding-top: 10vh;
+    }
+
+    .login-card {
+        padding: var(--spacing-md);
+    }
+
+    .login-logo {
         width: 56px;
         height: 56px;
     }
 
-    .orbital-item {
-        width: 48px;
-        height: 48px;
-    }
-}
-
-/* Safe area for notched phones */
-@supports (padding-bottom: env(safe-area-inset-bottom)) {
-    .mobile-nav {
-        bottom: calc(24px + env(safe-area-inset-bottom));
-    }
-
-    .dashboard-content {
-        padding-bottom: calc(100px + env(safe-area-inset-bottom));
-    }
-
-    @media (max-width: 375px) {
-        .mobile-nav {
-            bottom: calc(16px + env(safe-area-inset-bottom));
-        }
+    .login-tagline {
+        font-size: 1rem;
     }
 }
 
 /* ============================================================================
-   Touch-Friendly Interactions
+   PWA Standalone Mode Enhancements
    ============================================================================ */
-@media (hover: none) and (pointer: coarse) {
-    /* Larger touch targets */
-    .btn-access,
-    .btn-delete,
-    .btn-add,
-    .calendar-nav-btn,
-    .calendar-today-btn,
-    .calendar-day:not(.empty) {
-        min-height: 44px;
+@media (display-mode: standalone) {
+    /* Prevent overscroll bounce */
+    html, body {
+        overscroll-behavior: none;
+        -webkit-overflow-scrolling: touch;
     }
 
-    /* Remove hover effects that don't work well on touch */
-    .concours-card:hover {
-        transform: none;
+    /* Full height for PWA */
+    .app-container,
+    .login-screen {
+        min-height: 100dvh;
     }
 
-    .btn-access:hover,
-    .btn-delete:hover,
-    .btn-add:hover {
-        transform: none;
+    /* Sticky header in PWA mode */
+    .header {
+        position: sticky;
+        top: env(safe-area-inset-top, 0px);
+        z-index: 50;
     }
 
-    /* Active states instead */
-    .concours-card:active {
-        transform: scale(0.98);
-        transition: transform 0.1s ease;
+    /* Smooth scrolling */
+    .bento-grid,
+    .concours-grid,
+    .calendar-events,
+    .modal-content {
+        -webkit-overflow-scrolling: touch;
     }
 
-    .btn-access:active,
-    .btn-delete:active,
-    .btn-add:active {
-        transform: scale(0.95);
-        transition: transform 0.1s ease;
+    /* Hide browser UI hints */
+    .add-to-home-banner {
+        display: none !important;
+    }
+}
+
+/* iOS-specific PWA fixes */
+@supports (-webkit-touch-callout: none) {
+    /* Fix 100vh issue on iOS Safari */
+    .app-container {
+        min-height: -webkit-fill-available;
+    }
+
+    .login-screen {
+        min-height: -webkit-fill-available;
+    }
+
+    /* Prevent text selection on buttons */
+    button {
+        -webkit-user-select: none;
+        user-select: none;
+    }
+
+    /* Smooth momentum scrolling */
+    .concours-grid,
+    .calendar-events,
+    .modal-content,
+    .profile-tabs {
+        -webkit-overflow-scrolling: touch;
+    }
+}
+
+/* ============================================================================
+   Reduced Motion — Accessibility
+   ============================================================================ */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+
+    .mobile-nav-fab,
+    .orbital-item,
+    .concours-card,
+    .bento-card {
+        transition: none !important;
+    }
+
+    .fab-ripple {
+        display: none;
     }
 }
 
