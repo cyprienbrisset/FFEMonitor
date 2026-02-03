@@ -32,7 +32,7 @@ class Settings(BaseSettings):
 
     # Resend (email notifications)
     resend_api_key: str = ""
-    resend_from_email: str = "Hoofs <notifications@hoofs.fr>"
+    resend_from_email: str = "Hoofs <hoofs@brisset.me>"
 
     # Délais par plan (secondes)
     delay_free: int = 600      # 10 minutes

@@ -134,9 +134,9 @@ async def test_email_notification(
     if not notifier:
         return MessageResponse(message="Notifier non initialisé", success=False)
 
-    if not settings.supabase_fully_configured:
+    if not settings.resend_configured:
         return MessageResponse(
-            message="Supabase non entièrement configuré (service_key ou jwt_secret manquant)",
+            message="Resend non configuré (RESEND_API_KEY manquant)",
             success=False
         )
 
