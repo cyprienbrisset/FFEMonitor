@@ -26,7 +26,7 @@ export default function LoginPage() {
           <div className="login-header">
             <div className="login-logo-wrapper">
               <Image
-                src="/logo_hoofs.png"
+                src="/logo_hoofs.svg"
                 alt="Hoofs Logo"
                 width={72}
                 height={72}

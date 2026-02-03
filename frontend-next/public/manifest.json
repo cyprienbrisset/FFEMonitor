@@ -75,9 +75,9 @@
             "purpose": "maskable"
         },
         {
-            "src": "/logo_hoofs.png",
-            "sizes": "512x512",
-            "type": "image/png",
+            "src": "/logo_hoofs.svg",
+            "sizes": "any",
+            "type": "image/svg+xml",
             "purpose": "any"
         }
     ],

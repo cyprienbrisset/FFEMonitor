@@ -114,7 +114,7 @@ export default function DashboardPage() {
       <header className="header">
         <div className="logo-wrapper">
           <Image
-            src="/logo_hoofs.png"
+            src="/logo_hoofs.svg"
             alt="Hoofs"
             width={40}
             height={40}
