@@ -36,13 +36,49 @@ export function UserProfileModal({ user, accessToken, getAccessToken, onClose, o
   const [deleteConfirm, setDeleteConfirm] = useState('')
   const [testingNotif, setTestingNotif] = useState<string | null>(null)
   const [notifPermission, setNotifPermission] = useState<NotificationPermission | 'unsupported'>('default')
+  const [debugInfo, setDebugInfo] = useState<{
+    isIOS: boolean
+    isPWA: boolean
+    permission: string
+    oneSignalLoaded: boolean
+    subscriptionId: string | null
+  } | null>(null)
 
-  // Check notification permission on mount
+  // Check notification permission and gather debug info on mount
   useEffect(() => {
-    if (typeof window !== 'undefined' && 'Notification' in window) {
-      setNotifPermission(Notification.permission)
-    } else {
-      setNotifPermission('unsupported')
+    if (typeof window !== 'undefined') {
+      if ('Notification' in window) {
+        setNotifPermission(Notification.permission)
+      } else {
+        setNotifPermission('unsupported')
+      }
+
+      // Gather debug info
+      const gatherDebugInfo = async () => {
+        const info: typeof debugInfo = {
+          isIOS: isIOS(),
+          isPWA: isPWA(),
+          permission: 'Notification' in window ? Notification.permission : 'unsupported',
+          oneSignalLoaded: !!window.OneSignalDeferred,
+          subscriptionId: null
+        }
+
+        // Try to get OneSignal subscription ID
+        if (window.OneSignalDeferred) {
+          window.OneSignalDeferred.push(async (OneSignal: any) => {
+            try {
+              const subId = await OneSignal.User?.PushSubscription?.id
+              setDebugInfo(prev => prev ? { ...prev, subscriptionId: subId || 'non disponible' } : null)
+            } catch (e) {
+              setDebugInfo(prev => prev ? { ...prev, subscriptionId: 'erreur' } : null)
+            }
+          })
+        }
+
+        setDebugInfo(info)
+      }
+
+      gatherDebugInfo()
     }
   }, [])
 
@@ -516,6 +552,46 @@ export function UserProfileModal({ user, accessToken, getAccessToken, onClose, o
                   </div>
                 )}
               </div>
+
+              {/* Debug info */}
+              {debugInfo && (
+                <div className="profile-section debug-section">
+                  <h3>Diagnostic Push</h3>
+                  <div className="debug-info">
+                    <div className="debug-row">
+                      <span>iOS:</span>
+                      <span className={debugInfo.isIOS ? 'yes' : 'no'}>{debugInfo.isIOS ? 'Oui' : 'Non'}</span>
+                    </div>
+                    <div className="debug-row">
+                      <span>Mode PWA:</span>
+                      <span className={debugInfo.isPWA ? 'yes' : 'no'}>{debugInfo.isPWA ? 'Oui' : 'Non'}</span>
+                    </div>
+                    <div className="debug-row">
+                      <span>Permission:</span>
+                      <span className={debugInfo.permission === 'granted' ? 'yes' : 'no'}>{debugInfo.permission}</span>
+                    </div>
+                    <div className="debug-row">
+                      <span>OneSignal:</span>
+                      <span className={debugInfo.oneSignalLoaded ? 'yes' : 'no'}>{debugInfo.oneSignalLoaded ? 'Chargé' : 'Non chargé'}</span>
+                    </div>
+                    <div className="debug-row">
+                      <span>ID Push:</span>
+                      <span className={debugInfo.subscriptionId && debugInfo.subscriptionId !== 'non disponible' ? 'yes' : 'no'}>
+                        {debugInfo.subscriptionId || 'En attente...'}
+                      </span>
+                    </div>
+                  </div>
+                  {debugInfo.isIOS && !debugInfo.isPWA && (
+                    <p className="debug-warning">⚠️ Vous n'êtes pas en mode PWA. Ajoutez l'app à l'écran d'accueil depuis Safari.</p>
+                  )}
+                  {debugInfo.permission === 'denied' && (
+                    <p className="debug-warning">⚠️ Notifications bloquées. Allez dans Réglages → Safari → Notifications.</p>
+                  )}
+                  {debugInfo.permission === 'granted' && (!debugInfo.subscriptionId || debugInfo.subscriptionId === 'non disponible') && (
+                    <p className="debug-warning">⚠️ Permission OK mais pas d'ID. Essayez de recharger l'app.</p>
+                  )}
+                </div>
+              )}
 
               <div className="profile-section">
                 <h3>Délai de notification</h3>

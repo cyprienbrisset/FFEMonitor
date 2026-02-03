@@ -2511,6 +2511,51 @@ body {
     flex-shrink: 0;
 }
 
+/* Debug section */
+.debug-section {
+    background: var(--cream);
+    border: 1px dashed var(--border-color);
+}
+
+.debug-info {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 0.8rem;
+    font-family: monospace;
+}
+
+.debug-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 8px;
+    background: var(--background);
+    border-radius: 4px;
+}
+
+.debug-row span:first-child {
+    color: var(--gray);
+}
+
+.debug-row span.yes {
+    color: var(--success);
+    font-weight: 600;
+}
+
+.debug-row span.no {
+    color: var(--error);
+    font-weight: 600;
+}
+
+.debug-warning {
+    margin-top: var(--spacing-sm);
+    padding: 8px 12px;
+    background: var(--pastel-peach);
+    border-radius: var(--radius-soft);
+    font-size: 0.75rem;
+    color: var(--text);
+}
+
 .plan-comparison {
     display: flex;
     gap: var(--spacing-sm);
