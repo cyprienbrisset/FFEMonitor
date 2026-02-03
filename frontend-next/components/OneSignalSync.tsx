@@ -3,11 +3,7 @@
 import { useEffect, useRef } from 'react'
 import { updateProfile } from '@/lib/api'
 
-declare global {
-  interface Window {
-    OneSignalDeferred?: Array<(OneSignal: any) => void>
-  }
-}
+// Note: Window.OneSignalDeferred est déjà déclaré dans ServiceWorkerRegistration.tsx
 
 interface OneSignalSyncProps {
   accessToken?: string
@@ -21,10 +17,12 @@ export function OneSignalSync({ accessToken }: OneSignalSyncProps) {
 
     // Attendre que OneSignal soit chargé
     if (typeof window !== 'undefined' && window.OneSignalDeferred) {
-      window.OneSignalDeferred.push(async (OneSignal: any) => {
+      window.OneSignalDeferred.push(async (OneSignalUnknown: unknown) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const OneSignal = OneSignalUnknown as any
         try {
           // Récupérer le subscription ID actuel
-          const subscriptionId = await OneSignal.User.PushSubscription.id
+          const subscriptionId = await OneSignal.User?.PushSubscription?.id
 
           if (subscriptionId) {
             console.log('[OneSignal] Subscription ID trouvé:', subscriptionId)
@@ -33,7 +31,7 @@ export function OneSignalSync({ accessToken }: OneSignalSyncProps) {
           }
 
           // Écouter les changements de subscription (quand l'utilisateur accepte/refuse)
-          OneSignal.User.PushSubscription.addEventListener('change', async (event: any) => {
+          OneSignal.User?.PushSubscription?.addEventListener('change', async (event: { current?: { id?: string } }) => {
             const newId = event.current?.id
             if (newId) {
               console.log('[OneSignal] Nouveau subscription ID:', newId)
