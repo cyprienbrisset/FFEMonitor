@@ -53,42 +53,32 @@ document.addEventListener('DOMContentLoaded', async () => {
         loginBtn.textContent = 'Connexion...';
 
         try {
-            // First, get Supabase config from the API
-            const configResponse = await fetch(`${apiUrl}/auth/config`);
-            if (!configResponse.ok) {
-                throw new Error('Impossible de récupérer la configuration');
-            }
-            const config = await configResponse.json();
-
-            // Login via Supabase
-            const loginResponse = await fetch(`${config.supabase_url}/auth/v1/token?grant_type=password`, {
+            // Login via backend (qui gère l'auth Supabase côté serveur)
+            const loginResponse = await fetch(`${apiUrl}/auth/extension/login`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'apikey': config.supabase_anon_key,
                 },
                 body: JSON.stringify({ email, password }),
             });
 
             if (!loginResponse.ok) {
                 const error = await loginResponse.json();
-                throw new Error(error.error_description || 'Identifiants incorrects');
+                throw new Error(error.detail || 'Identifiants incorrects');
             }
 
             const authData = await loginResponse.json();
 
-            // Save everything
+            // Save tokens
             await chrome.storage.sync.set({
                 apiUrl,
-                supabaseUrl: config.supabase_url,
-                supabaseAnonKey: config.supabase_anon_key,
                 accessToken: authData.access_token,
                 refreshToken: authData.refresh_token,
-                userEmail: email,
+                userEmail: authData.user_email,
             });
 
             showMessage('Connecté avec succès !', 'success');
-            await showConnectedView(email, apiUrl, authData.access_token);
+            await showConnectedView(authData.user_email, apiUrl, authData.access_token);
 
         } catch (error) {
             console.error('Login error:', error);

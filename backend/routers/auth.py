@@ -41,10 +41,17 @@ class LoginResponse(BaseModel):
     expires_in: int  # secondes
 
 
-class AuthConfigResponse(BaseModel):
-    """Configuration Supabase pour l'authentification."""
-    supabase_url: str
-    supabase_anon_key: str
+class ExtensionLoginRequest(BaseModel):
+    """Requête de connexion depuis l'extension."""
+    email: str
+    password: str
+
+
+class ExtensionLoginResponse(BaseModel):
+    """Réponse de connexion pour l'extension."""
+    access_token: str
+    refresh_token: str
+    user_email: str
 
 
 class UserInfo(BaseModel):
@@ -230,16 +237,55 @@ async def logout():
     return {"message": "Déconnexion réussie"}
 
 
-@router.get("/auth/config", response_model=AuthConfigResponse)
-async def get_auth_config():
+@router.post("/auth/extension/login", response_model=ExtensionLoginResponse)
+async def extension_login(request: ExtensionLoginRequest):
     """
-    Retourne la configuration Supabase pour l'authentification.
-    Utilisé par l'extension Chrome pour se connecter.
+    Authentifie un utilisateur depuis l'extension Chrome.
+    L'authentification se fait côté serveur avec Supabase.
+
+    Args:
+        request: Email et mot de passe
 
     Returns:
-        URL et clé anonyme Supabase
+        Tokens d'accès et de rafraîchissement
     """
-    return AuthConfigResponse(
-        supabase_url=settings.supabase_url,
-        supabase_anon_key=settings.supabase_anon_key,
-    )
+    import httpx
+
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{settings.supabase_url}/auth/v1/token?grant_type=password",
+                headers={
+                    "Content-Type": "application/json",
+                    "apikey": settings.supabase_anon_key,
+                },
+                json={
+                    "email": request.email,
+                    "password": request.password,
+                },
+            )
+
+            if response.status_code != 200:
+                error_data = response.json()
+                error_msg = error_data.get("error_description", "Identifiants incorrects")
+                logger.warning(f"Extension login failed for {request.email}: {error_msg}")
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail=error_msg,
+                )
+
+            auth_data = response.json()
+            logger.info(f"Extension login successful for {request.email}")
+
+            return ExtensionLoginResponse(
+                access_token=auth_data["access_token"],
+                refresh_token=auth_data["refresh_token"],
+                user_email=request.email,
+            )
+
+    except httpx.RequestError as e:
+        logger.error(f"Extension login error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Service d'authentification indisponible",
+        )
