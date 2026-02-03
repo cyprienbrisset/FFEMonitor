@@ -273,14 +273,43 @@
 
     // Injecter à côté des boutons "Ajouter au comparateur"
     async function injectButtonsNextToComparator(monitored) {
-        // Chercher tous les boutons "Ajouter au comparateur" avec leur data-show-number
+        // Chercher tous les éléments avec data-show-number (le numéro de concours)
         // Format FFE: <button class="btn btn-ffec btn-grey comparator" data-action="add" data-show-number="479978">
-        const comparatorButtons = document.querySelectorAll(
+        let comparatorButtons = document.querySelectorAll(
             'button.comparator[data-show-number], ' +
             'button[data-action="add"][data-show-number], ' +
             '.comparator[data-show-number], ' +
             '[data-action="add"][data-show-number]'
         );
+
+        // Si rien trouvé, essayer une recherche plus large
+        if (comparatorButtons.length === 0) {
+            // Chercher tout élément avec data-show-number
+            comparatorButtons = document.querySelectorAll('[data-show-number]');
+            console.log(`[Hoofs] Recherche large: ${comparatorButtons.length} éléments avec data-show-number`);
+        }
+
+        // Fallback: chercher les boutons avec texte "comparateur"
+        if (comparatorButtons.length === 0) {
+            const allButtons = document.querySelectorAll('button, a.btn');
+            const textButtons = [];
+            allButtons.forEach(btn => {
+                const text = btn.textContent?.toLowerCase() || '';
+                if (text.includes('comparateur') || text.includes('ajouter')) {
+                    // Chercher un numéro à proximité (parent ou frère)
+                    const row = btn.closest('tr');
+                    const numero = row?.getAttribute('data-number') || btn.getAttribute('data-show-number');
+                    if (numero) {
+                        btn.dataset.hoofsNumero = numero;
+                        textButtons.push(btn);
+                    }
+                }
+            });
+            if (textButtons.length > 0) {
+                comparatorButtons = textButtons;
+                console.log(`[Hoofs] Trouvé ${textButtons.length} boutons par texte`);
+            }
+        }
 
         if (comparatorButtons.length === 0) {
             // Fallback: chercher tous les boutons .comparator et vérifier leur attribut
@@ -289,11 +318,11 @@
             allComparators.forEach(btn => {
                 if (btn.getAttribute('data-show-number')) foundWithNumber++;
             });
-            console.log(`[Hoofs] Aucun bouton avec sélecteur principal, fallback: ${allComparators.length} .comparator dont ${foundWithNumber} avec data-show-number`);
+            console.log(`[Hoofs] Aucun bouton trouvé. .comparator: ${allComparators.length}, avec data-show-number: ${foundWithNumber}`);
             return 0;
         }
 
-        console.log(`[Hoofs] ${comparatorButtons.length} boutons comparateur trouvés`);
+        console.log(`[Hoofs] ${comparatorButtons.length} boutons/éléments comparateur trouvés`);
         let injectedCount = 0;
 
         // Injecter un bouton après chaque bouton comparateur
@@ -307,7 +336,7 @@
                 return;
             }
 
-            const numero = comparatorBtn.getAttribute('data-show-number');
+            const numero = comparatorBtn.getAttribute('data-show-number') || comparatorBtn.dataset.hoofsNumero;
             if (!numero) return;
 
             const btn = createHoofsButton(numero);
@@ -423,7 +452,7 @@
 
     // Initialisation
     async function init() {
-        console.log('[Hoofs] Initialisation...');
+        console.log('[Hoofs] Initialisation sur:', window.location.href);
 
         // Debug: Afficher l'état initial de la page
         function debugPageState() {
@@ -431,14 +460,43 @@
             const comparatorBtns = document.querySelectorAll('button.comparator[data-show-number]');
             const dataShowNumberEls = document.querySelectorAll('[data-show-number]');
             const allComparators = document.querySelectorAll('.comparator');
-            console.log(`[Hoofs] État page: ${trRows.length} tr[data-number], ${comparatorBtns.length} button.comparator[data-show-number], ${dataShowNumberEls.length} [data-show-number], ${allComparators.length} .comparator`);
+            const addBtns = document.querySelectorAll('[data-action="add"]');
+            const btnWithShowNum = document.querySelectorAll('button[data-show-number]');
+
+            // Chercher aussi dans les iframes
+            const iframes = document.querySelectorAll('iframe');
+
+            // Log détaillé
+            console.log(`[Hoofs] DEBUG - URL: ${window.location.href}`);
+            console.log(`[Hoofs] DEBUG - tr[data-number]: ${trRows.length}`);
+            console.log(`[Hoofs] DEBUG - button.comparator[data-show-number]: ${comparatorBtns.length}`);
+            console.log(`[Hoofs] DEBUG - [data-show-number]: ${dataShowNumberEls.length}`);
+            console.log(`[Hoofs] DEBUG - .comparator: ${allComparators.length}`);
+            console.log(`[Hoofs] DEBUG - [data-action="add"]: ${addBtns.length}`);
+            console.log(`[Hoofs] DEBUG - button[data-show-number]: ${btnWithShowNum.length}`);
+            console.log(`[Hoofs] DEBUG - iframes: ${iframes.length}`);
 
             // Log les premiers éléments trouvés pour debug
             if (comparatorBtns.length > 0) {
                 const first = comparatorBtns[0];
                 console.log(`[Hoofs] Premier bouton comparateur: numero=${first.getAttribute('data-show-number')}, visible=${first.offsetParent !== null}`);
             }
-            return { trRows: trRows.length, comparatorBtns: comparatorBtns.length };
+            if (allComparators.length > 0 && comparatorBtns.length === 0) {
+                // Il y a des .comparator mais sans data-show-number
+                allComparators.forEach((el, i) => {
+                    if (i < 3) {
+                        console.log(`[Hoofs] .comparator[${i}]: tag=${el.tagName}, classes=${el.className}, attrs=${Array.from(el.attributes).map(a => `${a.name}="${a.value}"`).join(', ')}`);
+                    }
+                });
+            }
+            if (dataShowNumberEls.length > 0 && comparatorBtns.length === 0) {
+                dataShowNumberEls.forEach((el, i) => {
+                    if (i < 3) {
+                        console.log(`[Hoofs] [data-show-number][${i}]: tag=${el.tagName}, numero=${el.getAttribute('data-show-number')}, classes=${el.className}`);
+                    }
+                });
+            }
+            return { trRows: trRows.length, comparatorBtns: comparatorBtns.length, dataShowNumberEls: dataShowNumberEls.length };
         }
 
         // Attendre que la page soit complètement chargée
@@ -513,15 +571,24 @@
         });
 
         // Réessayer plusieurs fois pour le contenu chargé dynamiquement
-        const retryDelays = [1500, 3000, 5000];
+        const retryDelays = [1500, 3000, 5000, 8000];
         for (const delay of retryDelays) {
             if (injected) break;
             await new Promise(resolve => setTimeout(resolve, delay - (retryDelays[retryDelays.indexOf(delay) - 1] || 500)));
             console.log(`[Hoofs] Tentative après ${delay}ms...`);
             state = debugPageState();
-            if (state.comparatorBtns > 0 || state.trRows > 0) {
+            if (state.comparatorBtns > 0 || state.trRows > 0 || state.dataShowNumberEls > 0) {
                 injected = await injectButtons();
+                if (!injected) {
+                    console.log('[Hoofs] injectButtons returned false, trying injectHoofsButton...');
+                    await injectHoofsButton();
+                }
             }
+        }
+
+        // Message final si rien n'a été injecté
+        if (!injected) {
+            console.log('[Hoofs] Aucun concours détecté sur cette page. Assurez-vous d\'être sur une page avec des résultats de recherche ou une page de détail de concours.');
         }
     }
 

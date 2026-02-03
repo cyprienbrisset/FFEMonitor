@@ -102,7 +102,7 @@ async def test_push_notification(
     # Vérifier si l'utilisateur a un player_id OneSignal
     if not user.onesignal_player_id:
         return MessageResponse(
-            message="Vous devez d'abord autoriser les notifications push dans votre navigateur",
+            message="Notifications non configurées. Sur iOS, ajoutez l'app à l'écran d'accueil puis autorisez les notifications. Sinon, cliquez sur 'Autoriser' quand le navigateur vous le propose.",
             success=False
         )
 

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { User } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
 import { testNotification, loadProfile, UserProfile } from '@/lib/api'
+import { getPushStatus, requestPushPermission, isIOS, isPWA } from '@/components/OneSignalSync'
 
 interface UserProfileModalProps {
   user: User
@@ -33,6 +34,16 @@ export function UserProfileModal({ user, accessToken, onClose, onSignOut }: User
   const [confirmPassword, setConfirmPassword] = useState('')
   const [deleteConfirm, setDeleteConfirm] = useState('')
   const [testingNotif, setTestingNotif] = useState<string | null>(null)
+  const [notifPermission, setNotifPermission] = useState<NotificationPermission | 'unsupported'>('default')
+
+  // Check notification permission on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      setNotifPermission(Notification.permission)
+    } else {
+      setNotifPermission('unsupported')
+    }
+  }, [])
 
   // Fetch profile on mount
   useEffect(() => {
@@ -348,7 +359,8 @@ export function UserProfileModal({ user, accessToken, onClose, onSignOut }: User
                   <button
                     className={`btn-test-notif ${testingNotif === 'push' ? 'loading' : ''}`}
                     onClick={() => handleTestNotification('push')}
-                    disabled={testingNotif !== null}
+                    disabled={testingNotif !== null || getPushStatus() === 'ios-browser'}
+                    title={getPushStatus() === 'ios-browser' ? 'Non disponible sur Safari iOS' : undefined}
                   >
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
@@ -357,6 +369,130 @@ export function UserProfileModal({ user, accessToken, onClose, onSignOut }: User
                     <span>Push</span>
                   </button>
                 </div>
+
+                {/* iOS-specific messages */}
+                {isIOS() && !isPWA() && (
+                  <div className="ios-push-notice">
+                    <p>
+                      <strong>Safari iOS ne supporte pas les notifications push.</strong><br/>
+                      Pour recevoir des notifications push, ajoutez Hoofs à votre écran d'accueil :
+                    </p>
+                    <ol>
+                      <li>Appuyez sur le bouton partage <span style={{fontSize: '16px'}}>⎙</span></li>
+                      <li>Sélectionnez "Sur l'écran d'accueil"</li>
+                      <li>Ouvrez l'app depuis votre écran d'accueil</li>
+                    </ol>
+                    <p className="ios-hint">Les notifications email fonctionnent dans tous les cas.</p>
+                  </div>
+                )}
+
+                {isIOS() && isPWA() && (
+                  <div className="ios-push-notice ios-pwa">
+                    <p>
+                      <strong>Notifications push sur iOS</strong><br/>
+                      Appuyez sur le bouton ci-dessous pour autoriser les notifications.
+                    </p>
+                    <button
+                      className="btn-primary-small"
+                      onClick={async () => {
+                        const granted = await requestPushPermission()
+                        if (granted) {
+                          showMessage('Notifications autorisées ! Vous pouvez maintenant tester.', 'success')
+                        } else {
+                          showMessage('Notifications refusées. Activez-les dans Réglages > Hoofs.', 'error')
+                        }
+                      }}
+                    >
+                      Autoriser les notifications
+                    </button>
+                  </div>
+                )}
+
+                {/* Bouton pour activer les notifications sur tous les navigateurs */}
+                {!isIOS() && (
+                  <div className={`push-permission-section ${notifPermission === 'granted' ? 'granted' : notifPermission === 'denied' ? 'denied' : ''}`}>
+                    {notifPermission === 'granted' ? (
+                      <>
+                        <div className="push-status-granted">
+                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                            <polyline points="22 4 12 14.01 9 11.01"/>
+                          </svg>
+                          Notifications activées
+                        </div>
+                        <p className="push-hint">Vous recevrez les notifications push</p>
+                      </>
+                    ) : notifPermission === 'denied' ? (
+                      <>
+                        <div className="push-status-denied">
+                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <line x1="15" y1="9" x2="9" y2="15"/>
+                            <line x1="9" y1="9" x2="15" y2="15"/>
+                          </svg>
+                          Notifications bloquées
+                        </div>
+                        <p className="push-hint">
+                          Pour les activer : cliquez sur le cadenas dans la barre d'adresse → Notifications → Autoriser
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          className="btn-enable-push"
+                          onClick={async () => {
+                            // Utiliser OneSignal pour demander la permission
+                            if (typeof window !== 'undefined' && window.OneSignalDeferred) {
+                              window.OneSignalDeferred.push(async (OneSignal: any) => {
+                                try {
+                                  // Demander la permission via OneSignal
+                                  await OneSignal.Slidedown.promptPush()
+                                  showMessage('Vérifiez la demande de notification de votre navigateur', 'success')
+                                  // Update permission state after a delay
+                                  setTimeout(() => {
+                                    if ('Notification' in window) {
+                                      setNotifPermission(Notification.permission)
+                                    }
+                                  }, 1000)
+                                } catch (error: any) {
+                                  console.error('[OneSignal] Prompt error:', error)
+                                  // Fallback: demander directement
+                                  const permission = await Notification.requestPermission()
+                                  setNotifPermission(permission)
+                                  if (permission === 'granted') {
+                                    showMessage('Notifications activées !', 'success')
+                                  } else if (permission === 'denied') {
+                                    showMessage('Notifications bloquées. Vérifiez les paramètres de votre navigateur.', 'error')
+                                  } else {
+                                    showMessage('Vous avez fermé la demande. Réessayez quand vous êtes prêt.', 'error')
+                                  }
+                                }
+                              })
+                            } else {
+                              // OneSignal non chargé, utiliser l'API native
+                              const permission = await Notification.requestPermission()
+                              setNotifPermission(permission)
+                              if (permission === 'granted') {
+                                showMessage('Notifications activées !', 'success')
+                              } else if (permission === 'denied') {
+                                showMessage('Notifications bloquées. Vérifiez les paramètres de votre navigateur.', 'error')
+                              }
+                            }
+                          }}
+                        >
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                          </svg>
+                          Activer les notifications push
+                        </button>
+                        <p className="push-hint">
+                          Cliquez pour autoriser les notifications dans votre navigateur
+                        </p>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="profile-section">
