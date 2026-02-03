@@ -1,399 +1,242 @@
 /**
- * FFE Monitor Chrome Extension - Content Script
- * Injects surveillance buttons on FFE Compet pages
+ * Hoofs Chrome Extension - Content Script
+ * Injecte des boutons "Ajouter à Hoofs" dans les tableaux de concours FFE
+ * Ne s'active que sur https://ffecompet.ffe.com/concours*
  */
 
 (function() {
     'use strict';
 
-    // Check if we're on a relevant page
-    const isConcoursListPage = window.location.href.includes('/concours') ||
-                               window.location.href.includes('/recherche');
-    const isConcoursDetailPage = /\/concours\/\d+/.test(window.location.href);
+    // Vérifier qu'on est bien sur la page des concours
+    if (!window.location.href.startsWith('https://ffecompet.ffe.com/concours')) {
+        return;
+    }
 
-    if (!isConcoursListPage && !isConcoursDetailPage) return;
+    console.log('[Hoofs] Extension chargée sur la page concours');
 
-    console.log('[FFE Monitor] Extension chargée');
-
-    // Create notification container
+    // Créer le conteneur de notifications
     const notificationContainer = document.createElement('div');
-    notificationContainer.id = 'ffemonitor-notifications';
+    notificationContainer.id = 'hoofs-notifications';
     document.body.appendChild(notificationContainer);
 
-    // Show notification
+    // Afficher une notification
     function showNotification(message, type = 'info') {
         const notification = document.createElement('div');
-        notification.className = 'ffemonitor-notification ffemonitor-' + type;
+        notification.className = `hoofs-notification hoofs-${type}`;
 
         const icon = document.createElement('span');
-        icon.className = 'ffemonitor-notification-icon';
+        icon.className = 'hoofs-notification-icon';
         icon.textContent = type === 'success' ? '✓' : type === 'error' ? '✗' : 'ℹ';
 
         const text = document.createElement('span');
-        text.className = 'ffemonitor-notification-text';
+        text.className = 'hoofs-notification-text';
         text.textContent = message;
 
         notification.appendChild(icon);
         notification.appendChild(text);
         notificationContainer.appendChild(notification);
 
-        // Animate in
+        // Animation d'entrée
         setTimeout(() => notification.classList.add('show'), 10);
 
-        // Remove after 4 seconds
+        // Suppression après 4 secondes
         setTimeout(() => {
             notification.classList.remove('show');
             setTimeout(() => notification.remove(), 300);
         }, 4000);
     }
 
-    // Add concours to surveillance
-    async function addToSurveillance(numero, button) {
-        const originalText = button.textContent;
-        button.textContent = '';
+    // Créer un spinner
+    function createSpinner() {
         const spinner = document.createElement('span');
-        spinner.className = 'ffemonitor-spinner';
-        button.appendChild(spinner);
+        spinner.className = 'hoofs-spinner';
+        return spinner;
+    }
+
+    // Mettre à jour le contenu d'un bouton
+    function setButtonContent(button, iconText, labelText, isAdded = false) {
+        button.textContent = '';
+
+        if (iconText) {
+            const iconSpan = document.createElement('span');
+            iconSpan.className = 'hoofs-btn-icon';
+            iconSpan.textContent = iconText;
+            button.appendChild(iconSpan);
+        }
+
+        if (labelText) {
+            const textNode = document.createTextNode(' ' + labelText);
+            button.appendChild(textNode);
+        }
+
+        if (isAdded) {
+            button.classList.add('hoofs-btn-added');
+        }
+    }
+
+    // Ajouter un concours à la surveillance
+    async function addToHoofs(numero, button) {
+        button.textContent = '';
+        button.appendChild(createSpinner());
         button.disabled = true;
 
         try {
-            const settings = await chrome.storage.sync.get(['apiUrl', 'token', 'username', 'password']);
+            const settings = await chrome.storage.sync.get(['apiUrl', 'accessToken']);
 
-            if (!settings.apiUrl || !settings.token) {
-                showNotification('Configurez l\'extension dans le popup', 'error');
+            if (!settings.apiUrl || !settings.accessToken) {
+                showNotification('Connectez-vous via l\'extension Hoofs', 'error');
+                setButtonContent(button, '+', 'Hoofs');
+                button.disabled = false;
                 return;
             }
 
-            // Try to add the concours
-            let response = await fetch(settings.apiUrl + '/concours', {
+            const response = await fetch(`${settings.apiUrl}/concours`, {
                 method: 'POST',
                 headers: {
-                    'Authorization': 'Bearer ' + settings.token,
+                    'Authorization': `Bearer ${settings.accessToken}`,
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({ numero: parseInt(numero) }),
             });
 
-            // If unauthorized, try to re-authenticate
-            if (response.status === 401) {
-                const newToken = await reAuthenticate(settings);
-                if (newToken) {
-                    response = await fetch(settings.apiUrl + '/concours', {
-                        method: 'POST',
-                        headers: {
-                            'Authorization': 'Bearer ' + newToken,
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ numero: parseInt(numero) }),
-                    });
-                } else {
-                    showNotification('Session expirée - Reconnectez-vous via l\'extension', 'error');
-                    return;
-                }
-            }
-
-            if (response.status === 201) {
-                showNotification('Concours ' + numero + ' ajouté à la surveillance', 'success');
-                button.textContent = '✓ Surveillé';
-                button.classList.add('ffemonitor-btn-added');
+            if (response.status === 201 || response.status === 200) {
+                showNotification(`Concours ${numero} ajouté à Hoofs`, 'success');
+                setButtonContent(button, '✓', 'Ajouté', true);
                 button.disabled = true;
             } else if (response.status === 409) {
-                showNotification('Concours ' + numero + ' déjà surveillé', 'info');
-                button.textContent = '✓ Surveillé';
-                button.classList.add('ffemonitor-btn-added');
+                showNotification(`Concours ${numero} déjà surveillé`, 'info');
+                setButtonContent(button, '✓', 'Ajouté', true);
                 button.disabled = true;
+            } else if (response.status === 401) {
+                showNotification('Session expirée - Reconnectez-vous via l\'extension', 'error');
+                setButtonContent(button, '+', 'Hoofs');
+                button.disabled = false;
             } else {
-                throw new Error('Erreur ' + response.status);
+                throw new Error(`Erreur ${response.status}`);
             }
         } catch (error) {
-            console.error('[FFE Monitor] Error:', error);
-            showNotification('Erreur: ' + error.message, 'error');
-            button.textContent = originalText;
+            console.error('[Hoofs] Erreur:', error);
+            showNotification(`Erreur: ${error.message}`, 'error');
+            setButtonContent(button, '+', 'Hoofs');
             button.disabled = false;
         }
     }
 
-    // Re-authenticate
-    async function reAuthenticate(settings) {
-        if (!settings.username || !settings.password) return null;
-
-        try {
-            const response = await fetch(settings.apiUrl + '/auth/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    username: settings.username,
-                    password: settings.password,
-                }),
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                await chrome.storage.sync.set({ token: data.access_token });
-                return data.access_token;
-            }
-        } catch (error) {
-            console.error('[FFE Monitor] Re-auth failed:', error);
-        }
-        return null;
-    }
-
-    // Check if concours is already monitored
-    async function isMonitored(numero) {
-        try {
-            const settings = await chrome.storage.sync.get(['apiUrl', 'token']);
-            if (!settings.apiUrl || !settings.token) return false;
-
-            const response = await fetch(settings.apiUrl + '/concours', {
-                headers: { 'Authorization': 'Bearer ' + settings.token },
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                return data.concours.some(c => c.numero === parseInt(numero));
-            }
-        } catch (error) {
-            console.error('[FFE Monitor] Check monitored failed:', error);
-        }
-        return false;
-    }
-
-    // Create surveillance button
-    function createButton(numero) {
+    // Créer un bouton Hoofs
+    function createHoofsButton(numero) {
         const btn = document.createElement('button');
-        btn.className = 'ffemonitor-btn';
-        btn.textContent = '🐴 Surveiller';
-        btn.title = 'Ajouter à FFE Monitor';
+        btn.className = 'hoofs-btn';
+        btn.title = 'Ajouter à Hoofs';
         btn.dataset.numero = numero;
+
+        setButtonContent(btn, '+', 'Hoofs');
 
         btn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            addToSurveillance(numero, btn);
+            addToHoofs(numero, btn);
         });
 
         return btn;
     }
 
-    // Extract concours number from URL or element
-    function extractConcoursNumber(element) {
-        // Try from href
-        const link = element.querySelector('a[href*="/concours/"]') ||
-                     element.closest('a[href*="/concours/"]');
-        if (link) {
-            const match = link.href.match(/\/concours\/(\d+)/);
-            if (match) return match[1];
+    // Vérifier si un concours est déjà surveillé
+    async function checkIfMonitored(numeros) {
+        try {
+            const settings = await chrome.storage.sync.get(['apiUrl', 'accessToken']);
+            if (!settings.apiUrl || !settings.accessToken) return new Set();
+
+            const response = await fetch(`${settings.apiUrl}/concours`, {
+                headers: { 'Authorization': `Bearer ${settings.accessToken}` },
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                return new Set(data.concours.map(c => c.numero.toString()));
+            }
+        } catch (error) {
+            console.error('[Hoofs] Erreur vérification:', error);
         }
-
-        // Try from data attribute
-        if (element.dataset.concours) return element.dataset.concours;
-
-        // Try from text content that looks like a number
-        const text = element.textContent;
-        const match = text.match(/\b(\d{9})\b/);
-        if (match) return match[1];
-
-        return null;
+        return new Set();
     }
 
-    // Inject buttons into list pages
-    async function injectListButtons() {
-        // Wait a bit for the page to fully load
-        await new Promise(resolve => setTimeout(resolve, 1000));
+    // Injecter les boutons dans les lignes de tableau
+    async function injectButtons() {
+        // Trouver tous les tr avec un attribut datanumber
+        const rows = document.querySelectorAll('tr[datanumber]');
 
-        // Try different selectors for competition items
-        const selectors = [
-            '.resultat-concours',        // Search results
-            '.concours-item',            // List items
-            'tr[data-concours]',         // Table rows
-            '.competition-card',         // Card layout
-            '[class*="concours"]',       // Any element with concours in class
-        ];
-
-        let items = [];
-        for (const selector of selectors) {
-            items = document.querySelectorAll(selector);
-            if (items.length > 0) break;
-        }
-
-        // Also look for links to concours pages
-        if (items.length === 0) {
-            const links = document.querySelectorAll('a[href*="/concours/"]');
-            links.forEach(link => {
-                const match = link.href.match(/\/concours\/(\d+)/);
-                if (match && !link.closest('.ffemonitor-btn-container')) {
-                    const numero = match[1];
-                    const container = document.createElement('span');
-                    container.className = 'ffemonitor-btn-container ffemonitor-inline';
-                    container.appendChild(createButton(numero));
-
-                    // Insert after the link
-                    if (link.parentNode) {
-                        link.parentNode.insertBefore(container, link.nextSibling);
-                    }
-                }
-            });
+        if (rows.length === 0) {
+            console.log('[Hoofs] Aucune ligne avec datanumber trouvée');
             return;
         }
 
-        items.forEach(async item => {
-            // Skip if button already added
-            if (item.querySelector('.ffemonitor-btn')) return;
+        console.log(`[Hoofs] ${rows.length} concours trouvés`);
 
-            const numero = extractConcoursNumber(item);
+        // Récupérer la liste des concours déjà surveillés
+        const numeros = Array.from(rows).map(row => row.getAttribute('datanumber'));
+        const monitored = await checkIfMonitored(numeros);
+
+        // Ajouter l'en-tête de colonne si nécessaire
+        const headerRow = document.querySelector('thead tr, tr:first-child');
+        if (headerRow && !headerRow.querySelector('.hoofs-header')) {
+            const th = document.createElement('th');
+            th.className = 'hoofs-header';
+            th.textContent = 'Hoofs';
+            th.style.cssText = 'text-align: center; min-width: 80px;';
+            headerRow.appendChild(th);
+        }
+
+        // Injecter un bouton dans chaque ligne
+        rows.forEach(row => {
+            // Skip si déjà traité
+            if (row.querySelector('.hoofs-td')) return;
+
+            const numero = row.getAttribute('datanumber');
             if (!numero) return;
 
-            const btn = createButton(numero);
-            const container = document.createElement('div');
-            container.className = 'ffemonitor-btn-container';
-            container.appendChild(btn);
+            const td = document.createElement('td');
+            td.className = 'hoofs-td';
+            td.style.cssText = 'text-align: center; vertical-align: middle;';
 
-            // Check if already monitored
-            const monitored = await isMonitored(numero);
-            if (monitored) {
-                btn.textContent = '✓ Surveillé';
-                btn.classList.add('ffemonitor-btn-added');
+            const btn = createHoofsButton(numero);
+
+            // Marquer comme déjà ajouté si nécessaire
+            if (monitored.has(numero)) {
+                setButtonContent(btn, '✓', 'Ajouté', true);
                 btn.disabled = true;
             }
 
-            // Try to find a good place to insert the button
-            const actionArea = item.querySelector('.actions, .buttons, [class*="action"]');
-            if (actionArea) {
-                actionArea.appendChild(container);
-            } else {
-                item.appendChild(container);
-            }
+            td.appendChild(btn);
+            row.appendChild(td);
         });
     }
 
-    // Inject button on detail page
-    async function injectDetailButton() {
-        const match = window.location.href.match(/\/concours\/(\d+)/);
-        if (!match) return;
-
-        const numero = match[1];
-
-        // Wait for page to load
-        await new Promise(resolve => setTimeout(resolve, 500));
-
-        // Find a good place for the button (usually near the title or action buttons)
-        const titleElement = document.querySelector('h1, .titre-concours, .concours-title, [class*="titre"]');
-        const actionArea = document.querySelector('.actions, .buttons, .btn-group, [class*="action"]');
-
-        const btn = createButton(numero);
-        const container = document.createElement('div');
-        container.className = 'ffemonitor-btn-container ffemonitor-detail';
-        container.appendChild(btn);
-
-        // Check if already monitored
-        const monitored = await isMonitored(numero);
-        if (monitored) {
-            btn.textContent = '✓ Surveillé';
-            btn.classList.add('ffemonitor-btn-added');
-            btn.disabled = true;
-        }
-
-        if (actionArea) {
-            actionArea.prepend(container);
-        } else if (titleElement) {
-            titleElement.parentNode.insertBefore(container, titleElement.nextSibling);
-        } else {
-            // Last resort: add at the top of the page
-            const main = document.querySelector('main, .content, #content, body');
-            if (main) {
-                main.prepend(container);
-            }
-        }
-    }
-
-    // Create floating action button for quick add
-    function createFloatingButton() {
-        const fab = document.createElement('div');
-        fab.className = 'ffemonitor-fab';
-
-        const fabBtn = document.createElement('button');
-        fabBtn.className = 'ffemonitor-fab-btn';
-        fabBtn.title = 'Ajouter un concours à FFE Monitor';
-        fabBtn.textContent = '🐴';
-
-        const menu = document.createElement('div');
-        menu.className = 'ffemonitor-fab-menu';
-
-        const input = document.createElement('input');
-        input.type = 'text';
-        input.className = 'ffemonitor-fab-input';
-        input.placeholder = 'N° concours';
-        input.maxLength = 9;
-
-        const addBtn = document.createElement('button');
-        addBtn.className = 'ffemonitor-fab-add';
-        addBtn.textContent = 'Ajouter';
-
-        menu.appendChild(input);
-        menu.appendChild(addBtn);
-        fab.appendChild(fabBtn);
-        fab.appendChild(menu);
-
-        fabBtn.addEventListener('click', () => {
-            fab.classList.toggle('open');
-            if (fab.classList.contains('open')) {
-                input.focus();
-            }
-        });
-
-        addBtn.addEventListener('click', () => {
-            const numero = input.value.trim();
-            if (numero && /^\d+$/.test(numero)) {
-                addToSurveillance(numero, addBtn);
-                input.value = '';
-                setTimeout(() => fab.classList.remove('open'), 1000);
-            }
-        });
-
-        input.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                addBtn.click();
-            }
-        });
-
-        // Close when clicking outside
-        document.addEventListener('click', (e) => {
-            if (!fab.contains(e.target)) {
-                fab.classList.remove('open');
-            }
-        });
-
-        document.body.appendChild(fab);
-    }
-
-    // Initialize
+    // Initialisation
     async function init() {
-        const settings = await chrome.storage.sync.get(['apiUrl', 'token']);
+        // Attendre que la page soit complètement chargée
+        await new Promise(resolve => setTimeout(resolve, 1000));
 
-        if (!settings.apiUrl || !settings.token) {
-            console.log('[FFE Monitor] Extension non configurée');
-            // Still show FAB for configuration reminder
-        }
+        // Injecter les boutons
+        await injectButtons();
 
-        // Inject appropriate buttons based on page type
-        if (isConcoursDetailPage) {
-            injectDetailButton();
-        } else {
-            injectListButtons();
-        }
-
-        // Always add the floating action button
-        createFloatingButton();
-
-        // Re-run injection when page content changes (for SPAs)
+        // Observer les changements DOM pour les pages dynamiques
         const observer = new MutationObserver((mutations) => {
             let shouldReinject = false;
+
             for (const mutation of mutations) {
                 if (mutation.addedNodes.length > 0) {
                     for (const node of mutation.addedNodes) {
-                        if (node.nodeType === 1 && !node.classList?.contains('ffemonitor-btn-container')) {
-                            shouldReinject = true;
-                            break;
+                        if (node.nodeType === 1) {
+                            // Vérifier si c'est un nouveau tr avec datanumber
+                            if (node.tagName === 'TR' && node.hasAttribute('datanumber')) {
+                                shouldReinject = true;
+                                break;
+                            }
+                            // Ou si ça contient des tr avec datanumber
+                            if (node.querySelector && node.querySelector('tr[datanumber]')) {
+                                shouldReinject = true;
+                                break;
+                            }
                         }
                     }
                 }
@@ -401,13 +244,7 @@
             }
 
             if (shouldReinject) {
-                setTimeout(() => {
-                    if (isConcoursDetailPage) {
-                        injectDetailButton();
-                    } else {
-                        injectListButtons();
-                    }
-                }, 500);
+                setTimeout(injectButtons, 500);
             }
         });
 
@@ -417,7 +254,7 @@
         });
     }
 
-    // Start
+    // Démarrer
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
     } else {

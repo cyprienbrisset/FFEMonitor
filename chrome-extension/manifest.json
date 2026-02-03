@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "FFE Monitor - Surveillance Concours",
-  "description": "Ajoutez rapidement des concours FFE à votre surveillance FFE Monitor",
-  "version": "1.0.0",
+  "name": "Hoofs - Surveillance Concours FFE",
+  "description": "Ajoutez rapidement des concours FFE à votre surveillance Hoofs",
+  "version": "2.0.0",
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
@@ -14,8 +14,7 @@
   ],
   "host_permissions": [
     "https://ffecompet.ffe.com/*",
-    "http://localhost:8000/*",
-    "http://127.0.0.1:8000/*"
+    "https://*.supabase.co/*"
   ],
   "action": {
     "default_popup": "popup.html",
@@ -27,7 +26,7 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://ffecompet.ffe.com/*"],
+      "matches": ["https://ffecompet.ffe.com/concours*"],
       "js": ["content.js"],
       "css": ["styles.css"],
       "run_at": "document_idle"

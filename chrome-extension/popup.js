@@ -1,154 +1,225 @@
 /**
- * FFE Monitor Chrome Extension - Popup Script
+ * Hoofs Chrome Extension - Popup Script
+ * Gère l'authentification Supabase et l'état de connexion
  */
 
 document.addEventListener('DOMContentLoaded', async () => {
+    // Elements
     const apiUrlInput = document.getElementById('apiUrl');
-    const usernameInput = document.getElementById('username');
+    const emailInput = document.getElementById('email');
     const passwordInput = document.getElementById('password');
-    const saveBtn = document.getElementById('saveBtn');
-    const testBtn = document.getElementById('testBtn');
+    const loginBtn = document.getElementById('loginBtn');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const openAppBtn = document.getElementById('openAppBtn');
     const message = document.getElementById('message');
+    const messageConnected = document.getElementById('messageConnected');
     const statusDot = document.getElementById('statusDot');
     const statusText = document.getElementById('statusText');
-    const statsSection = document.getElementById('statsSection');
+    const statusEmail = document.getElementById('statusEmail');
+    const viewLogin = document.getElementById('viewLogin');
+    const viewConnected = document.getElementById('viewConnected');
     const concoursCount = document.getElementById('concoursCount');
     const surveillanceStatus = document.getElementById('surveillanceStatus');
 
     // Load saved settings
-    const settings = await chrome.storage.sync.get(['apiUrl', 'username', 'password', 'token']);
+    const settings = await chrome.storage.sync.get([
+        'apiUrl',
+        'supabaseUrl',
+        'supabaseAnonKey',
+        'accessToken',
+        'refreshToken',
+        'userEmail'
+    ]);
 
     if (settings.apiUrl) apiUrlInput.value = settings.apiUrl;
-    if (settings.username) usernameInput.value = settings.username;
-    if (settings.password) passwordInput.value = settings.password;
 
-    // If we have a token, check connection
-    if (settings.token && settings.apiUrl) {
-        testBtn.style.display = 'block';
-        await checkConnection(settings.apiUrl, settings.token);
+    // Check if already logged in
+    if (settings.accessToken && settings.apiUrl) {
+        await checkSession();
     }
 
-    // Save settings
-    saveBtn.addEventListener('click', async () => {
-        const apiUrl = apiUrlInput.value.trim().replace(/\/$/, ''); // Remove trailing slash
-        const username = usernameInput.value.trim();
+    // Login handler
+    loginBtn.addEventListener('click', async () => {
+        const apiUrl = apiUrlInput.value.trim().replace(/\/$/, '');
+        const email = emailInput.value.trim();
         const password = passwordInput.value;
 
-        if (!apiUrl || !username || !password) {
+        if (!apiUrl || !email || !password) {
             showMessage('Veuillez remplir tous les champs', 'error');
             return;
         }
 
-        saveBtn.disabled = true;
-        saveBtn.textContent = 'Connexion...';
+        loginBtn.disabled = true;
+        loginBtn.textContent = 'Connexion...';
 
         try {
-            // Authenticate
-            const token = await authenticate(apiUrl, username, password);
-
-            if (token) {
-                // Save everything
-                await chrome.storage.sync.set({
-                    apiUrl,
-                    username,
-                    password,
-                    token
-                });
-
-                showMessage('Connecté avec succès !', 'success');
-                testBtn.style.display = 'block';
-                await checkConnection(apiUrl, token);
+            // First, get Supabase config from the API
+            const configResponse = await fetch(`${apiUrl}/auth/config`);
+            if (!configResponse.ok) {
+                throw new Error('Impossible de récupérer la configuration');
             }
-        } catch (error) {
-            showMessage(error.message, 'error');
-        } finally {
-            saveBtn.disabled = false;
-            saveBtn.textContent = 'Enregistrer & Connecter';
-        }
-    });
+            const config = await configResponse.json();
 
-    // Test connection
-    testBtn.addEventListener('click', async () => {
-        const settings = await chrome.storage.sync.get(['apiUrl', 'token']);
-        if (settings.apiUrl && settings.token) {
-            testBtn.disabled = true;
-            testBtn.textContent = 'Test...';
-            await checkConnection(settings.apiUrl, settings.token);
-            testBtn.disabled = false;
-            testBtn.textContent = 'Tester la connexion';
-        }
-    });
-
-    async function authenticate(apiUrl, username, password) {
-        try {
-            const response = await fetch(`${apiUrl}/auth/login`, {
+            // Login via Supabase
+            const loginResponse = await fetch(`${config.supabase_url}/auth/v1/token?grant_type=password`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'apikey': config.supabase_anon_key,
                 },
-                body: JSON.stringify({ username, password }),
+                body: JSON.stringify({ email, password }),
+            });
+
+            if (!loginResponse.ok) {
+                const error = await loginResponse.json();
+                throw new Error(error.error_description || 'Identifiants incorrects');
+            }
+
+            const authData = await loginResponse.json();
+
+            // Save everything
+            await chrome.storage.sync.set({
+                apiUrl,
+                supabaseUrl: config.supabase_url,
+                supabaseAnonKey: config.supabase_anon_key,
+                accessToken: authData.access_token,
+                refreshToken: authData.refresh_token,
+                userEmail: email,
+            });
+
+            showMessage('Connecté avec succès !', 'success');
+            await showConnectedView(email, apiUrl, authData.access_token);
+
+        } catch (error) {
+            console.error('Login error:', error);
+            showMessage(error.message, 'error');
+        } finally {
+            loginBtn.disabled = false;
+            loginBtn.textContent = 'Se connecter';
+        }
+    });
+
+    // Logout handler
+    logoutBtn.addEventListener('click', async () => {
+        await chrome.storage.sync.remove([
+            'accessToken',
+            'refreshToken',
+            'userEmail',
+        ]);
+
+        statusDot.classList.remove('connected');
+        statusText.textContent = 'Non connecté';
+        statusEmail.textContent = '';
+        viewLogin.classList.add('active');
+        viewConnected.classList.remove('active');
+    });
+
+    // Open app handler
+    openAppBtn.addEventListener('click', async () => {
+        const settings = await chrome.storage.sync.get(['apiUrl']);
+        if (settings.apiUrl) {
+            // Try to open the frontend (assumed to be on port 3000 or same domain)
+            const frontendUrl = settings.apiUrl.replace(':8000', ':3000').replace('/api', '');
+            chrome.tabs.create({ url: `${frontendUrl}/app` });
+        }
+    });
+
+    // Check session and show connected view
+    async function checkSession() {
+        const settings = await chrome.storage.sync.get([
+            'apiUrl',
+            'supabaseUrl',
+            'supabaseAnonKey',
+            'accessToken',
+            'refreshToken',
+            'userEmail'
+        ]);
+
+        if (!settings.accessToken || !settings.apiUrl) {
+            return;
+        }
+
+        try {
+            // Verify token with backend
+            const response = await fetch(`${settings.apiUrl}/health`, {
+                headers: {
+                    'Authorization': `Bearer ${settings.accessToken}`,
+                },
+            });
+
+            if (response.ok) {
+                await showConnectedView(settings.userEmail, settings.apiUrl, settings.accessToken);
+            } else if (response.status === 401 && settings.refreshToken) {
+                // Try to refresh token
+                const refreshed = await refreshAccessToken(settings);
+                if (refreshed) {
+                    await checkSession();
+                }
+            }
+        } catch (error) {
+            console.error('Session check failed:', error);
+        }
+    }
+
+    // Refresh access token
+    async function refreshAccessToken(settings) {
+        try {
+            const response = await fetch(`${settings.supabaseUrl}/auth/v1/token?grant_type=refresh_token`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'apikey': settings.supabaseAnonKey,
+                },
+                body: JSON.stringify({ refresh_token: settings.refreshToken }),
             });
 
             if (response.ok) {
                 const data = await response.json();
-                return data.access_token;
-            } else if (response.status === 401) {
-                throw new Error('Identifiants incorrects');
-            } else {
-                throw new Error('Erreur de connexion au serveur');
+                await chrome.storage.sync.set({
+                    accessToken: data.access_token,
+                    refreshToken: data.refresh_token,
+                });
+                return true;
             }
         } catch (error) {
-            if (error.message.includes('Failed to fetch')) {
-                throw new Error('Impossible de joindre le serveur FFE Monitor');
-            }
-            throw error;
+            console.error('Token refresh failed:', error);
         }
+        return false;
     }
 
-    async function checkConnection(apiUrl, token) {
+    // Show connected view
+    async function showConnectedView(email, apiUrl, token) {
+        statusDot.classList.add('connected');
+        statusText.textContent = 'Connecté';
+        statusEmail.textContent = email;
+        viewLogin.classList.remove('active');
+        viewConnected.classList.add('active');
+
+        // Load stats
         try {
-            // Check health
-            const healthResponse = await fetch(`${apiUrl}/health`);
-            if (!healthResponse.ok) throw new Error('Serveur non disponible');
-
-            const health = await healthResponse.json();
-
-            // Verify token
-            const verifyResponse = await fetch(`${apiUrl}/auth/verify`, {
-                headers: { 'Authorization': `Bearer ${token}` }
+            const response = await fetch(`${apiUrl}/concours`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                },
             });
 
-            if (verifyResponse.ok) {
-                statusDot.classList.add('connected');
-                statusText.textContent = 'Connecté';
-                statsSection.style.display = 'flex';
-                concoursCount.textContent = health.concours_count || 0;
-                surveillanceStatus.textContent = health.surveillance_active ? '✓' : '✗';
-            } else {
-                // Token expired, try to re-authenticate
-                const settings = await chrome.storage.sync.get(['apiUrl', 'username', 'password']);
-                if (settings.username && settings.password) {
-                    const newToken = await authenticate(settings.apiUrl, settings.username, settings.password);
-                    if (newToken) {
-                        await chrome.storage.sync.set({ token: newToken });
-                        return checkConnection(apiUrl, newToken);
-                    }
-                }
-                throw new Error('Session expirée');
+            if (response.ok) {
+                const data = await response.json();
+                concoursCount.textContent = data.total || 0;
+                surveillanceStatus.textContent = '✓';
             }
         } catch (error) {
-            statusDot.classList.remove('connected');
-            statusText.textContent = 'Non connecté';
-            statsSection.style.display = 'none';
-            console.error('Connection check failed:', error);
+            console.error('Failed to load stats:', error);
         }
     }
 
+    // Show message
     function showMessage(text, type) {
-        message.textContent = text;
-        message.className = `message ${type}`;
+        const activeMessage = viewLogin.classList.contains('active') ? message : messageConnected;
+        activeMessage.textContent = text;
+        activeMessage.className = `message ${type}`;
         setTimeout(() => {
-            message.className = 'message';
+            activeMessage.className = 'message';
         }, 5000);
     }
 });

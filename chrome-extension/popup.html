@@ -3,112 +3,187 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FFE Monitor</title>
+    <title>Hoofs</title>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Serif+Display&display=swap');
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
 
+        :root {
+            --cream: #FAF7F2;
+            --cream-dark: #F0EBE3;
+            --charcoal: #3D3D3D;
+            --gray: #6B6B6B;
+            --pastel-sage: #B8D4BE;
+            --pastel-sage-dark: #9BC4A3;
+            --pastel-lavender: #C5B9CD;
+            --pastel-mint: #A8D5D8;
+            --pastel-coral: #E8B4B4;
+            --saddle-brown: #8B7355;
+        }
+
         body {
-            width: 320px;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #1A1A1A;
-            color: #F5F0E8;
+            width: 340px;
+            font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--cream);
+            color: var(--charcoal);
         }
 
         .header {
-            background: linear-gradient(135deg, #722F37, #5A252C);
-            padding: 16px;
+            background: linear-gradient(135deg, var(--saddle-brown), #6B5344);
+            padding: 20px;
             text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 60%);
+            pointer-events: none;
         }
 
         .logo {
-            font-size: 32px;
-            margin-bottom: 4px;
+            width: 48px;
+            height: 48px;
+            margin: 0 auto 8px;
+            border-radius: 12px;
+            background: var(--cream);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
         }
 
         .header h1 {
-            font-size: 16px;
-            font-weight: 600;
+            font-family: 'DM Serif Display', serif;
+            font-size: 20px;
+            font-weight: 400;
+            color: var(--cream);
             margin: 0;
         }
 
         .header p {
-            font-size: 11px;
-            opacity: 0.8;
-            margin-top: 2px;
+            font-size: 12px;
+            color: rgba(250, 247, 242, 0.8);
+            margin-top: 4px;
         }
 
         .content {
-            padding: 16px;
+            padding: 20px;
         }
 
         .status {
             display: flex;
             align-items: center;
-            gap: 8px;
-            padding: 12px;
-            background: #2D2D2D;
-            border-radius: 8px;
+            gap: 10px;
+            padding: 14px 16px;
+            background: white;
+            border-radius: 12px;
             margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(139, 115, 85, 0.08);
         }
 
         .status-dot {
             width: 10px;
             height: 10px;
             border-radius: 50%;
-            background: #A63D40;
+            background: var(--pastel-coral);
+            transition: all 0.3s;
         }
 
         .status-dot.connected {
-            background: #4A7C59;
-            box-shadow: 0 0 8px rgba(74, 124, 89, 0.5);
+            background: var(--pastel-sage);
+            box-shadow: 0 0 8px rgba(184, 212, 190, 0.6);
         }
 
         .status-text {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .status-email {
+            font-size: 12px;
+            color: var(--gray);
+            margin-left: auto;
+            max-width: 140px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .info-card {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(139, 115, 85, 0.08);
+        }
+
+        .info-card h3 {
             font-size: 13px;
+            font-weight: 600;
+            color: var(--charcoal);
+            margin-bottom: 8px;
+        }
+
+        .info-card p {
+            font-size: 12px;
+            color: var(--gray);
+            line-height: 1.5;
         }
 
         .form-group {
-            margin-bottom: 12px;
+            margin-bottom: 14px;
         }
 
         label {
             display: block;
             font-size: 12px;
-            color: rgba(245, 240, 232, 0.6);
-            margin-bottom: 4px;
+            font-weight: 500;
+            color: var(--gray);
+            margin-bottom: 6px;
         }
 
         input {
             width: 100%;
-            padding: 10px 12px;
-            background: #2D2D2D;
-            border: 1px solid rgba(245, 240, 232, 0.1);
-            border-radius: 6px;
-            color: #F5F0E8;
-            font-size: 13px;
-            transition: border-color 0.2s;
+            padding: 12px 14px;
+            background: white;
+            border: 2px solid var(--cream-dark);
+            border-radius: 10px;
+            color: var(--charcoal);
+            font-family: inherit;
+            font-size: 14px;
+            transition: all 0.2s;
         }
 
         input:focus {
             outline: none;
-            border-color: #C9A227;
+            border-color: var(--pastel-sage);
+            box-shadow: 0 0 0 3px rgba(184, 212, 190, 0.2);
         }
 
         input::placeholder {
-            color: rgba(245, 240, 232, 0.3);
+            color: #B8B8B8;
         }
 
         .btn {
             width: 100%;
-            padding: 12px;
-            background: linear-gradient(135deg, #C9A227, #A68B2A);
+            padding: 14px;
+            background: linear-gradient(135deg, var(--saddle-brown), #6B5344);
             border: none;
-            border-radius: 8px;
-            color: #1A1A1A;
+            border-radius: 12px;
+            color: var(--cream);
+            font-family: inherit;
             font-size: 14px;
             font-weight: 600;
             cursor: pointer;
@@ -117,140 +192,211 @@
 
         .btn:hover {
             transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(201, 162, 39, 0.3);
+            box-shadow: 0 4px 16px rgba(139, 115, 85, 0.3);
         }
 
         .btn:disabled {
-            opacity: 0.5;
+            opacity: 0.6;
             cursor: not-allowed;
             transform: none;
         }
 
         .btn-secondary {
-            background: #2D2D2D;
-            color: #F5F0E8;
-            margin-top: 8px;
+            background: var(--pastel-sage);
+            color: var(--charcoal);
+            margin-top: 10px;
         }
 
         .btn-secondary:hover {
-            background: #3D3D3D;
+            background: var(--pastel-sage-dark);
+            box-shadow: 0 4px 16px rgba(184, 212, 190, 0.3);
+        }
+
+        .btn-logout {
+            background: transparent;
+            color: var(--pastel-coral);
+            border: 2px solid var(--pastel-coral);
+            margin-top: 10px;
+        }
+
+        .btn-logout:hover {
+            background: var(--pastel-coral);
+            color: white;
             box-shadow: none;
         }
 
         .message {
-            padding: 10px 12px;
-            border-radius: 6px;
-            font-size: 12px;
-            margin-top: 12px;
+            padding: 12px 14px;
+            border-radius: 10px;
+            font-size: 13px;
+            margin-top: 14px;
             display: none;
         }
 
         .message.success {
             display: block;
-            background: rgba(74, 124, 89, 0.2);
-            border: 1px solid rgba(74, 124, 89, 0.3);
-            color: #5D9B70;
+            background: rgba(184, 212, 190, 0.3);
+            border: 1px solid var(--pastel-sage);
+            color: #5D8B67;
         }
 
         .message.error {
             display: block;
-            background: rgba(166, 61, 64, 0.2);
-            border: 1px solid rgba(166, 61, 64, 0.3);
-            color: #D35D60;
+            background: rgba(232, 180, 180, 0.3);
+            border: 1px solid var(--pastel-coral);
+            color: #B85C5C;
         }
 
         .footer {
-            padding: 12px 16px;
-            border-top: 1px solid rgba(245, 240, 232, 0.1);
+            padding: 14px 20px;
+            border-top: 1px solid var(--cream-dark);
             text-align: center;
         }
 
         .footer a {
-            color: rgba(245, 240, 232, 0.4);
+            color: var(--gray);
             font-size: 11px;
             text-decoration: none;
         }
 
         .footer a:hover {
-            color: #C9A227;
+            color: var(--saddle-brown);
+        }
+
+        /* Connected view */
+        .view-login, .view-connected {
+            display: none;
+        }
+
+        .view-login.active, .view-connected.active {
+            display: block;
         }
 
         .stats {
-            display: flex;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
             gap: 12px;
             margin-bottom: 16px;
         }
 
         .stat {
-            flex: 1;
-            background: #2D2D2D;
-            padding: 12px;
-            border-radius: 8px;
+            background: white;
+            padding: 16px;
+            border-radius: 12px;
             text-align: center;
+            box-shadow: 0 2px 8px rgba(139, 115, 85, 0.08);
         }
 
         .stat-value {
-            font-size: 20px;
-            font-weight: 700;
-            color: #C9A227;
+            font-family: 'DM Serif Display', serif;
+            font-size: 28px;
+            color: var(--saddle-brown);
         }
 
         .stat-label {
-            font-size: 10px;
-            color: rgba(245, 240, 232, 0.5);
+            font-size: 11px;
+            color: var(--gray);
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            margin-top: 2px;
+            margin-top: 4px;
+        }
+
+        .usage-hint {
+            background: linear-gradient(135deg, rgba(184, 212, 190, 0.2), rgba(168, 213, 216, 0.2));
+            border-radius: 12px;
+            padding: 14px;
+            margin-bottom: 16px;
+        }
+
+        .usage-hint h4 {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--charcoal);
+            margin-bottom: 6px;
+        }
+
+        .usage-hint p {
+            font-size: 11px;
+            color: var(--gray);
+            line-height: 1.5;
+        }
+
+        .usage-hint code {
+            background: rgba(139, 115, 85, 0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
         }
     </style>
 </head>
 <body>
     <div class="header">
         <div class="logo">🐴</div>
-        <h1>FFE Monitor</h1>
-        <p>Extension de surveillance</p>
+        <h1>Hoofs</h1>
+        <p>Surveillance des concours FFE</p>
     </div>
 
     <div class="content">
         <div class="status">
             <div class="status-dot" id="statusDot"></div>
             <span class="status-text" id="statusText">Non connecté</span>
+            <span class="status-email" id="statusEmail"></span>
         </div>
 
-        <div class="stats" id="statsSection" style="display: none;">
-            <div class="stat">
-                <div class="stat-value" id="concoursCount">0</div>
-                <div class="stat-label">Concours</div>
+        <!-- Login View -->
+        <div class="view-login active" id="viewLogin">
+            <div class="info-card">
+                <h3>Connexion requise</h3>
+                <p>Connectez-vous avec votre compte Hoofs pour ajouter des concours à votre surveillance directement depuis le site FFE.</p>
             </div>
-            <div class="stat">
-                <div class="stat-value" id="surveillanceStatus">—</div>
-                <div class="stat-label">Surveillance</div>
+
+            <div class="form-group">
+                <label>URL de l'API Hoofs</label>
+                <input type="text" id="apiUrl" placeholder="https://hoofs.example.com">
             </div>
+
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" id="email" placeholder="votre@email.com">
+            </div>
+
+            <div class="form-group">
+                <label>Mot de passe</label>
+                <input type="password" id="password" placeholder="••••••••">
+            </div>
+
+            <button class="btn" id="loginBtn">Se connecter</button>
+
+            <div class="message" id="message"></div>
         </div>
 
-        <div class="form-group">
-            <label>URL de FFE Monitor</label>
-            <input type="text" id="apiUrl" placeholder="http://localhost:8000">
+        <!-- Connected View -->
+        <div class="view-connected" id="viewConnected">
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-value" id="concoursCount">0</div>
+                    <div class="stat-label">Concours</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="surveillanceStatus">✓</div>
+                    <div class="stat-label">Actif</div>
+                </div>
+            </div>
+
+            <div class="usage-hint">
+                <h4>💡 Comment utiliser</h4>
+                <p>Allez sur <code>ffecompet.ffe.com/concours</code> et cliquez sur les boutons <strong>"+ Hoofs"</strong> pour ajouter des concours à votre surveillance.</p>
+            </div>
+
+            <button class="btn btn-secondary" id="openAppBtn">Ouvrir Hoofs</button>
+            <button class="btn btn-logout" id="logoutBtn">Se déconnecter</button>
+
+            <div class="message" id="messageConnected"></div>
         </div>
-
-        <div class="form-group">
-            <label>Nom d'utilisateur</label>
-            <input type="text" id="username" placeholder="admin">
-        </div>
-
-        <div class="form-group">
-            <label>Mot de passe</label>
-            <input type="password" id="password" placeholder="••••••••">
-        </div>
-
-        <button class="btn" id="saveBtn">Enregistrer & Connecter</button>
-        <button class="btn btn-secondary" id="testBtn" style="display: none;">Tester la connexion</button>
-
-        <div class="message" id="message"></div>
     </div>
 
     <div class="footer">
-        <a href="https://github.com/cyprienbrisset/FFEMonitor" target="_blank">FFE Monitor v1.0</a>
+        <a href="https://github.com/cyprienbrisset/FFEMonitor" target="_blank">Hoofs v2.0</a>
     </div>
 
     <script src="popup.js"></script>
