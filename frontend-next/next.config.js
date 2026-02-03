@@ -53,6 +53,10 @@ const nextConfig = {
         source: '/test-:channel',
         destination: `${backendUrl}/test-:channel`,
       },
+      {
+        source: '/profile',
+        destination: `${backendUrl}/profile`,
+      },
     ]
   },
   // Service worker headers
