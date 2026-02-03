@@ -109,12 +109,17 @@ async def get_current_user(
     profile = await supabase.get_user_profile(user_id)
 
     if not profile:
-        # Créer un contexte minimal si pas de profil
-        return UserContext(
-            id=user_id,
-            email=user_email,
-            plan="free",
-        )
+        # Créer le profil automatiquement s'il n'existe pas
+        logger.info(f"Création automatique du profil pour {user_email}")
+        profile = await supabase.create_user_profile(user_id, user_email)
+
+        if not profile:
+            # Si la création échoue, retourner un contexte minimal
+            return UserContext(
+                id=user_id,
+                email=user_email,
+                plan="free",
+            )
 
     return UserContext(
         id=user_id,

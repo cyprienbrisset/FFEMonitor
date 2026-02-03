@@ -113,6 +113,29 @@ class SupabaseClient:
             logger.debug(f"Profil non trouvé pour {user_id}: {e}")
             return None
 
+    async def create_user_profile(self, user_id: str, email: str) -> Optional[dict]:
+        """Crée un nouveau profil utilisateur."""
+        if not self._service_client:
+            return None
+
+        try:
+            response = (
+                self._service_client.table("profiles")
+                .insert({
+                    "id": user_id,
+                    "email": email,
+                    "plan": "free",
+                })
+                .execute()
+            )
+            if response.data:
+                logger.info(f"Profil créé pour {email}")
+                return response.data[0]
+            return None
+        except Exception as e:
+            logger.error(f"Erreur création profil pour {user_id}: {e}")
+            return None
+
     async def update_user_profile(self, user_id: str, data: dict) -> bool:
         """Met à jour le profil utilisateur."""
         if not self._service_client:
