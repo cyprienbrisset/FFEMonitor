@@ -12,7 +12,7 @@ const STATIC_CACHE_NAME = 'hoofs-static-v5';
 
 // Assets statiques à mettre en cache
 const STATIC_ASSETS = [
-    '/logo.svg',
+    '/logo_hoofs.png',
     '/manifest.json',
     '/offline.html',
     '/icons/icon-72.png',
