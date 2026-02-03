@@ -5,7 +5,7 @@ Router pour les endpoints de santé de l'application.
 from fastapi import APIRouter, Depends
 
 from backend.models import HealthResponse, MessageResponse
-from backend.routers.auth import require_auth
+from backend.middleware.supabase_auth import get_current_user, UserContext
 
 router = APIRouter(tags=["Health"])
 
@@ -73,10 +73,12 @@ async def debug_supabase():
     return result
 
 
-@router.post("/test-push", response_model=MessageResponse, dependencies=[Depends(require_auth)])
-async def test_push_notification() -> MessageResponse:
+@router.post("/test-push", response_model=MessageResponse)
+async def test_push_notification(
+    user: UserContext = Depends(get_current_user)
+) -> MessageResponse:
     """
-    Envoie une notification push de test via OneSignal.
+    Envoie une notification push de test via OneSignal à l'utilisateur connecté.
 
     Returns:
         MessageResponse avec le résultat
@@ -97,12 +99,19 @@ async def test_push_notification() -> MessageResponse:
     if not notifier.onesignal:
         return MessageResponse(message="OneSignal notifier non disponible", success=False)
 
+    # Vérifier si l'utilisateur a un player_id OneSignal
+    if not user.onesignal_player_id:
+        return MessageResponse(
+            message="Vous devez d'abord autoriser les notifications push dans votre navigateur",
+            success=False
+        )
+
     try:
-        # Envoyer une notification de test à tous les abonnés
-        success = await notifier.onesignal.send_startup_notification()
+        # Envoyer une notification de test à cet utilisateur spécifique
+        success = await notifier.onesignal.send_test_notification(user.onesignal_player_id)
         if success:
             return MessageResponse(message="Notification push de test envoyée", success=True)
         else:
-            return MessageResponse(message="Échec de l'envoi (aucun abonné?)", success=False)
+            return MessageResponse(message="Échec de l'envoi de la notification", success=False)
     except Exception as e:
         return MessageResponse(message=f"Erreur: {str(e)}", success=False)

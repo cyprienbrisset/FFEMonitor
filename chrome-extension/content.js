@@ -1,6 +1,6 @@
 /**
  * Hoofs Chrome Extension - Content Script
- * Injecte des boutons "Ajouter à Hoofs" à côté des boutons "Ajouter au comparateur"
+ * Injecte des boutons "Surveiller avec Hoofs" à côté des boutons "Ajouter au comparateur"
  * Ne s'active que sur https://ffecompet.ffe.com/concours*
  */
 
@@ -84,10 +84,10 @@
             return urlMatch[1];
         }
 
-        // Essayer depuis un attribut datanumber sur la page
-        const elementWithData = document.querySelector('[datanumber]');
+        // Essayer depuis un attribut data-number ou data-show-number sur la page
+        const elementWithData = document.querySelector('[data-number], [data-show-number]');
         if (elementWithData) {
-            return elementWithData.getAttribute('datanumber');
+            return elementWithData.getAttribute('data-number') || elementWithData.getAttribute('data-show-number');
         }
 
         // Essayer depuis le titre ou un élément contenant le numéro
@@ -111,7 +111,7 @@
 
             if (!settings.apiUrl || !settings.accessToken) {
                 showNotification('Connectez-vous via l\'extension Hoofs', 'error');
-                setButtonContent(button, '🐴', 'Ajouter à Hoofs');
+                setButtonContent(button, '🐴', 'Surveiller avec Hoofs');
                 button.disabled = false;
                 return;
             }
@@ -126,16 +126,16 @@
             });
 
             if (response.status === 201 || response.status === 200) {
-                showNotification(`Concours ${numero} ajouté à Hoofs`, 'success');
-                setButtonContent(button, '✓', 'Ajouté à Hoofs', true);
+                showNotification(`Concours ${numero} ajouté à la surveillance`, 'success');
+                setButtonContent(button, '✓', 'Surveillé', true);
                 button.disabled = true;
             } else if (response.status === 409) {
                 showNotification(`Concours ${numero} déjà surveillé`, 'info');
-                setButtonContent(button, '✓', 'Déjà dans Hoofs', true);
+                setButtonContent(button, '✓', 'Déjà surveillé', true);
                 button.disabled = true;
             } else if (response.status === 401) {
                 showNotification('Session expirée - Reconnectez-vous via l\'extension', 'error');
-                setButtonContent(button, '🐴', 'Ajouter à Hoofs');
+                setButtonContent(button, '🐴', 'Surveiller avec Hoofs');
                 button.disabled = false;
             } else {
                 throw new Error(`Erreur ${response.status}`);
@@ -143,7 +143,7 @@
         } catch (error) {
             console.error('[Hoofs] Erreur:', error);
             showNotification(`Erreur: ${error.message}`, 'error');
-            setButtonContent(button, '🐴', 'Ajouter à Hoofs');
+            setButtonContent(button, '🐴', 'Surveiller avec Hoofs');
             button.disabled = false;
         }
     }
@@ -152,11 +152,11 @@
     function createHoofsButton(numero) {
         const btn = document.createElement('button');
         btn.className = 'hoofs-btn';
-        btn.title = 'Ajouter à la surveillance Hoofs';
+        btn.title = 'Surveiller ce concours avec Hoofs';
         btn.dataset.numero = numero;
         btn.type = 'button';
 
-        setButtonContent(btn, '🐴', 'Ajouter à Hoofs');
+        setButtonContent(btn, '🐴', 'Surveiller avec Hoofs');
 
         btn.addEventListener('click', (e) => {
             e.preventDefault();
@@ -187,45 +187,42 @@
         return false;
     }
 
-    // Injecter le bouton Hoofs à côté du bouton comparateur
+    // Injecter le bouton Hoofs sur une page de détail de concours
     async function injectHoofsButton() {
-        // Chercher le bouton "Ajouter au comparateur" ou similaire
-        const comparateurButtons = document.querySelectorAll('button, a.btn, .btn');
-        let targetButton = null;
+        // Vérifier si le bouton Hoofs existe déjà
+        if (document.querySelector('.hoofs-btn')) {
+            console.log('[Hoofs] Bouton déjà présent');
+            return;
+        }
 
-        for (const btn of comparateurButtons) {
+        // Extraire le numéro de concours depuis l'URL
+        const urlMatch = window.location.pathname.match(/\/concours\/(\d+)/);
+        let numero = urlMatch ? urlMatch[1] : null;
+
+        // Ou depuis les éléments de la page
+        if (!numero) {
+            const elementWithData = document.querySelector('[data-number], [data-show-number]');
+            if (elementWithData) {
+                numero = elementWithData.getAttribute('data-number') || elementWithData.getAttribute('data-show-number');
+            }
+        }
+
+        if (!numero) {
+            console.log('[Hoofs] Page détail: numéro de concours non trouvé dans URL ou attributs');
+            return;
+        }
+
+        console.log(`[Hoofs] Page détail - Concours détecté: ${numero}`);
+
+        // Chercher le bouton "Ajouter au comparateur" ou similaire
+        let targetButton = null;
+        const allButtons = document.querySelectorAll('button, a.btn, .btn');
+        for (const btn of allButtons) {
             const text = btn.textContent.toLowerCase();
             if (text.includes('comparateur') || text.includes('comparer')) {
                 targetButton = btn;
                 break;
             }
-        }
-
-        // Si pas trouvé, chercher dans les actions de la page
-        if (!targetButton) {
-            const actionContainers = document.querySelectorAll('.actions, .btn-group, .buttons, [class*="action"], [class*="button"]');
-            for (const container of actionContainers) {
-                if (container.querySelector('button, a.btn')) {
-                    targetButton = container.querySelector('button, a.btn');
-                    break;
-                }
-            }
-        }
-
-        // Extraire le numéro de concours
-        const numero = getConcoursNumber();
-
-        if (!numero) {
-            console.log('[Hoofs] Numéro de concours non trouvé');
-            return;
-        }
-
-        console.log(`[Hoofs] Concours détecté: ${numero}`);
-
-        // Vérifier si le bouton Hoofs existe déjà
-        if (document.querySelector('.hoofs-btn')) {
-            console.log('[Hoofs] Bouton déjà présent');
-            return;
         }
 
         // Créer le bouton Hoofs
@@ -234,7 +231,7 @@
         // Vérifier si déjà surveillé
         const isMonitored = await isConcoursMonitored(numero);
         if (isMonitored) {
-            setButtonContent(hoofsBtn, '✓', 'Déjà dans Hoofs', true);
+            setButtonContent(hoofsBtn, '✓', 'Déjà surveillé', true);
             hoofsBtn.disabled = true;
         }
 
@@ -242,28 +239,19 @@
         if (targetButton && targetButton.parentNode) {
             // Insérer après le bouton comparateur
             targetButton.parentNode.insertBefore(hoofsBtn, targetButton.nextSibling);
-            console.log('[Hoofs] Bouton inséré après le bouton comparateur');
+            console.log('[Hoofs] Bouton inséré après le bouton comparateur (page détail)');
         } else {
             // Fallback: créer un conteneur flottant
             const container = document.createElement('div');
             container.className = 'hoofs-floating-container';
             container.appendChild(hoofsBtn);
             document.body.appendChild(container);
-            console.log('[Hoofs] Bouton inséré en position flottante');
+            console.log('[Hoofs] Bouton inséré en position flottante (page détail)');
         }
     }
 
-    // Injecter dans les lignes de tableau (liste des concours)
-    async function injectButtonsInTable() {
-        const rows = document.querySelectorAll('tr[datanumber]');
-
-        if (rows.length === 0) {
-            return false;
-        }
-
-        console.log(`[Hoofs] ${rows.length} concours trouvés dans le tableau`);
-
-        // Récupérer la liste des concours déjà surveillés
+    // Récupérer les concours déjà surveillés
+    async function getMonitoredConcours() {
         const settings = await chrome.storage.sync.get(['apiUrl', 'accessToken']);
         let monitored = new Set();
 
@@ -280,20 +268,111 @@
                 console.error('[Hoofs] Erreur récupération concours:', e);
             }
         }
+        return monitored;
+    }
+
+    // Injecter à côté des boutons "Ajouter au comparateur"
+    async function injectButtonsNextToComparator(monitored) {
+        // Chercher tous les boutons "Ajouter au comparateur" avec leur data-show-number
+        // Plusieurs sélecteurs pour couvrir différentes variations
+        const comparatorButtons = document.querySelectorAll(
+            'button.comparator[data-show-number], ' +
+            '.comparator[data-show-number], ' +
+            '[data-action="add"][data-show-number]'
+        );
+
+        if (comparatorButtons.length === 0) {
+            console.log('[Hoofs] Aucun bouton comparateur trouvé');
+            return 0;
+        }
+
+        console.log(`[Hoofs] ${comparatorButtons.length} boutons comparateur trouvés`);
+        let injectedCount = 0;
+
+        // Injecter un bouton après chaque bouton comparateur
+        comparatorButtons.forEach(comparatorBtn => {
+            // Skip si bouton Hoofs déjà présent à côté
+            if (comparatorBtn.nextElementSibling && comparatorBtn.nextElementSibling.classList.contains('hoofs-btn')) {
+                return;
+            }
+            // Skip si parent contient déjà un bouton Hoofs
+            if (comparatorBtn.parentNode.querySelector('.hoofs-btn')) {
+                return;
+            }
+
+            const numero = comparatorBtn.getAttribute('data-show-number');
+            if (!numero) return;
+
+            const btn = createHoofsButton(numero);
+
+            // Marquer comme déjà surveillé si nécessaire
+            if (monitored.has(numero)) {
+                setButtonContent(btn, '✓', 'Déjà surveillé', true);
+                btn.disabled = true;
+            }
+
+            // Style pour s'aligner avec le bouton comparateur
+            btn.style.marginLeft = '8px';
+
+            // Insérer après le bouton comparateur
+            comparatorBtn.parentNode.insertBefore(btn, comparatorBtn.nextSibling);
+            console.log(`[Hoofs] Bouton ajouté à côté du comparateur pour concours ${numero}`);
+            injectedCount++;
+        });
+
+        return injectedCount;
+    }
+
+    // Injecter dans les lignes de tableau (liste des concours)
+    async function injectButtonsInTableRows(monitored) {
+        // Chercher les lignes avec data-number
+        const rows = document.querySelectorAll('tr[data-number]');
+
+        if (rows.length === 0) {
+            console.log('[Hoofs] Aucune ligne tr[data-number] trouvée');
+            return 0;
+        }
+
+        console.log(`[Hoofs] ${rows.length} lignes tr[data-number] trouvées`);
+        let injectedCount = 0;
 
         // Injecter un bouton dans chaque ligne
         rows.forEach(row => {
             // Skip si déjà traité
             if (row.querySelector('.hoofs-btn')) return;
 
-            const numero = row.getAttribute('datanumber');
+            const numero = row.getAttribute('data-number');
             if (!numero) return;
 
-            // Trouver la cellule des actions ou la dernière cellule
-            let targetCell = row.querySelector('td:last-child');
-            const actionCell = row.querySelector('td.actions, td:has(button), td:has(a.btn)');
+            // Chercher le bouton comparateur dans cette ligne ou dans les lignes liées
+            const relatedRows = document.querySelectorAll(`tr[data-number="${numero}"]`);
+            let comparatorBtn = null;
+            for (const r of relatedRows) {
+                comparatorBtn = r.querySelector('button.comparator, .comparator, [data-action="add"]');
+                if (comparatorBtn) break;
+            }
+
+            // Si on a trouvé un bouton comparateur, injecter à côté
+            if (comparatorBtn && !comparatorBtn.parentNode.querySelector('.hoofs-btn')) {
+                const btn = createHoofsButton(numero);
+                if (monitored.has(numero)) {
+                    setButtonContent(btn, '✓', 'Surveillé', true);
+                    btn.disabled = true;
+                }
+                btn.style.marginLeft = '8px';
+                comparatorBtn.parentNode.insertBefore(btn, comparatorBtn.nextSibling);
+                console.log(`[Hoofs] Bouton ajouté à côté du comparateur (via row) pour ${numero}`);
+                injectedCount++;
+                return;
+            }
+
+            // Sinon, trouver la cellule des actions ou la dernière cellule
+            let targetCell = null;
+            const actionCell = row.querySelector('td:has(button), td:has(a.btn)');
             if (actionCell) {
                 targetCell = actionCell;
+            } else {
+                targetCell = row.querySelector('td:last-child');
             }
 
             if (!targetCell) return;
@@ -302,10 +381,10 @@
 
             // Marquer comme déjà ajouté si nécessaire
             if (monitored.has(numero)) {
-                setButtonContent(btn, '✓', 'Hoofs', true);
+                setButtonContent(btn, '✓', 'Surveillé', true);
                 btn.disabled = true;
             } else {
-                setButtonContent(btn, '🐴', 'Hoofs');
+                setButtonContent(btn, '🐴', 'Surveiller');
             }
 
             // Style compact pour le tableau
@@ -314,21 +393,45 @@
             btn.style.padding = '4px 8px';
 
             targetCell.appendChild(btn);
+            console.log(`[Hoofs] Bouton ajouté dans la cellule pour concours ${numero}`);
+            injectedCount++;
         });
 
-        return true;
+        return injectedCount;
+    }
+
+    // Fonction principale d'injection
+    async function injectButtons() {
+        const monitored = await getMonitoredConcours();
+
+        // Essayer d'abord les boutons comparateur
+        let count = await injectButtonsNextToComparator(monitored);
+
+        // Ensuite les lignes de tableau
+        count += await injectButtonsInTableRows(monitored);
+
+        console.log(`[Hoofs] Total: ${count} boutons injectés`);
+        return count > 0;
     }
 
     // Initialisation
     async function init() {
+        console.log('[Hoofs] Initialisation...');
+
         // Attendre que la page soit complètement chargée
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        await new Promise(resolve => setTimeout(resolve, 1000));
 
-        // Essayer d'injecter dans le tableau (page liste)
-        const injectedInTable = await injectButtonsInTable();
+        // Debug: afficher ce qu'on trouve
+        const trRows = document.querySelectorAll('tr[data-number]');
+        const comparatorBtns = document.querySelectorAll('button.comparator, .comparator, [data-action="add"][data-show-number]');
+        console.log(`[Hoofs] Debug: ${trRows.length} tr[data-number], ${comparatorBtns.length} boutons comparateur`);
 
-        // Si pas de tableau, essayer la page détail
-        if (!injectedInTable) {
+        // Essayer d'injecter les boutons
+        let injected = await injectButtons();
+
+        // Si rien trouvé, essayer la page détail
+        if (!injected) {
+            console.log('[Hoofs] Mode liste échoué, tentative mode page détail...');
             await injectHoofsButton();
         }
 
@@ -340,15 +443,25 @@
                 if (mutation.addedNodes.length > 0) {
                     for (const node of mutation.addedNodes) {
                         if (node.nodeType === 1) {
-                            if (node.tagName === 'TR' && node.hasAttribute('datanumber')) {
+                            // Détecter les nouvelles lignes de tableau
+                            if (node.tagName === 'TR' && node.hasAttribute('data-number')) {
                                 shouldReinject = true;
                                 break;
                             }
-                            if (node.querySelector && node.querySelector('tr[datanumber]')) {
+                            if (node.querySelector && node.querySelector('tr[data-number]')) {
                                 shouldReinject = true;
                                 break;
                             }
-                            // Détecter aussi les nouveaux boutons comparateur
+                            // Détecter les nouveaux boutons comparateur
+                            if (node.classList && node.classList.contains('comparator')) {
+                                shouldReinject = true;
+                                break;
+                            }
+                            if (node.querySelector && node.querySelector('[data-show-number]')) {
+                                shouldReinject = true;
+                                break;
+                            }
+                            // Fallback: détecter par texte
                             if (node.textContent && node.textContent.toLowerCase().includes('comparateur')) {
                                 shouldReinject = true;
                                 break;
@@ -361,11 +474,8 @@
 
             if (shouldReinject) {
                 setTimeout(async () => {
-                    const injected = await injectButtonsInTable();
-                    if (!injected) {
-                        await injectHoofsButton();
-                    }
-                }, 500);
+                    await injectButtons();
+                }, 300);
             }
         });
 
@@ -373,6 +483,14 @@
             childList: true,
             subtree: true,
         });
+
+        // Réessayer après 3 secondes si rien n'a été injecté (pour le contenu chargé dynamiquement)
+        if (!injected) {
+            setTimeout(async () => {
+                console.log('[Hoofs] Nouvelle tentative après 3s...');
+                await injectButtons();
+            }, 3000);
+        }
     }
 
     // Démarrer

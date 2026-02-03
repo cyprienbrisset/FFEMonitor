@@ -149,10 +149,16 @@ export async function loadCalendarEvents(month: number, year: number, accessToke
   return response.json()
 }
 
-export async function testNotification(channel: 'telegram' | 'email' | 'whatsapp', accessToken?: string): Promise<{ success: boolean; message: string }> {
+export async function testNotification(channel: 'telegram' | 'email' | 'push', accessToken?: string): Promise<{ success: boolean; message: string }> {
   const response = await authenticatedFetch(`${API_BASE}/test-${channel}`, accessToken, {
     method: 'POST',
   })
+
+  if (!response.ok) {
+    const text = await response.text()
+    console.error('Test notification error:', response.status, text)
+    throw new Error(`Erreur ${response.status}: ${text.slice(0, 100)}`)
+  }
 
   return response.json()
 }
@@ -164,10 +170,31 @@ export interface UserProfile {
 }
 
 export async function loadProfile(accessToken?: string): Promise<UserProfile> {
-  const response = await authenticatedFetch(`${API_BASE}/profile`, accessToken)
+  const response = await authenticatedFetch(`${API_BASE}/subscriptions/profile`, accessToken)
 
   if (!response.ok) {
     throw new Error('Erreur chargement profil')
+  }
+
+  return response.json()
+}
+
+export async function updateProfile(
+  data: {
+    onesignal_player_id?: string
+    telegram_chat_id?: string
+    notification_email?: boolean
+    notification_push?: boolean
+  },
+  accessToken?: string
+): Promise<UserProfile> {
+  const response = await authenticatedFetch(`${API_BASE}/subscriptions/profile`, accessToken, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  })
+
+  if (!response.ok) {
+    throw new Error('Erreur mise à jour profil')
   }
 
   return response.json()

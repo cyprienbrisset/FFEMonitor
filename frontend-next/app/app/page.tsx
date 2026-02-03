@@ -20,6 +20,7 @@ import { Calendar } from '@/components/dashboard/Calendar'
 import { UserProfileModal } from '@/components/dashboard/UserProfileModal'
 import { ExtensionModal } from '@/components/dashboard/ExtensionModal'
 import { MobileNav } from '@/components/dashboard/MobileNav'
+import { OneSignalSync } from '@/components/OneSignalSync'
 
 const REFRESH_INTERVAL = 3000
 
@@ -214,6 +215,9 @@ export default function DashboardPage() {
         onOpenCalendar={scrollToCalendar}
         onOpenProfile={() => setShowProfile(true)}
       />
+
+      {/* OneSignal Player ID Sync */}
+      {accessToken && <OneSignalSync accessToken={accessToken} />}
     </div>
   )
 }
