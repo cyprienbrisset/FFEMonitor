@@ -302,7 +302,7 @@ class OneSignalNotifier:
     Envoie des push notifications aux utilisateurs de la PWA.
     """
 
-    ONESIGNAL_API_URL = "https://onesignal.com/api/v1/notifications"
+    ONESIGNAL_API_URL = "https://api.onesignal.com/notifications"
 
     def __init__(self, app_id: str, api_key: str):
         """
@@ -348,7 +348,7 @@ class OneSignalNotifier:
 
             payload = {
                 "app_id": self.app_id,
-                "include_player_ids": [player_id],
+                "include_subscription_ids": [player_id],
                 "headings": {"en": title, "fr": title},
                 "contents": {"en": message, "fr": message},
             }
@@ -362,7 +362,7 @@ class OneSignalNotifier:
             response = await client.post(
                 self.ONESIGNAL_API_URL,
                 headers={
-                    "Authorization": f"Basic {self.api_key}",
+                    "Authorization": f"Key {self.api_key}",
                     "Content-Type": "application/json",
                 },
                 json=payload,
@@ -424,7 +424,7 @@ class OneSignalNotifier:
             response = await client.post(
                 self.ONESIGNAL_API_URL,
                 headers={
-                    "Authorization": f"Basic {self.api_key}",
+                    "Authorization": f"Key {self.api_key}",
                     "Content-Type": "application/json",
                 },
                 json=payload,
