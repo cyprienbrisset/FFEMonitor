@@ -370,27 +370,46 @@ class OneSignalNotifier:
 
             if response.status_code == 200:
                 result = response.json()
+
+                # Vérifier les erreurs explicites
+                errors = result.get("errors", {})
+                invalid = errors.get("invalid_subscription_ids", [])
+
+                if invalid:
+                    logger.warning(
+                        f"Push OneSignal: subscription invalide pour {player_id} "
+                        f"(invalid_ids: {invalid})"
+                    )
+                    return False, (
+                        f"L'ID de souscription ({player_id[:12]}...) n'est plus valide sur OneSignal. "
+                        "L'abonnement push a peut-être expiré ou été révoqué. "
+                        "Essayez de désactiver puis réactiver les notifications."
+                    )
+
+                if errors and isinstance(errors, list) and len(errors) > 0:
+                    logger.warning(f"Push OneSignal erreurs: {errors}")
+                    return False, f"Erreur OneSignal: {errors}"
+
+                # v2 API: si la réponse contient un "id", la notification est créée
+                if result.get("id"):
+                    logger.info(
+                        f"Push OneSignal envoyé à {player_id} "
+                        f"(notification_id: {result['id']})"
+                    )
+                    return True, "Notification envoyée"
+
+                # Fallback: vérifier "recipients" (v1 API)
                 if result.get("recipients", 0) > 0:
                     logger.info(f"Push OneSignal envoyé à {player_id}")
                     return True, "Notification envoyée"
-                else:
-                    # OneSignal accepted the request but found no valid subscription
-                    errors = result.get("errors", {})
-                    invalid = errors.get("invalid_subscription_ids", [])
-                    logger.warning(
-                        f"Push OneSignal: aucun destinataire pour {player_id} "
-                        f"(invalid_ids: {invalid}, full response: {result})"
-                    )
-                    if invalid:
-                        return False, (
-                            f"L'ID de souscription ({player_id[:12]}...) n'est plus valide sur OneSignal. "
-                            "L'abonnement push a peut-être expiré ou été révoqué. "
-                            "Essayez de désactiver puis réactiver les notifications."
-                        )
-                    return False, (
-                        f"OneSignal n'a trouvé aucun destinataire pour cet ID ({player_id[:12]}...). "
-                        "Essayez de recharger la page et réactiver les notifications."
-                    )
+
+                logger.warning(
+                    f"Push OneSignal: réponse inattendue pour {player_id}: {result}"
+                )
+                return False, (
+                    f"OneSignal n'a trouvé aucun destinataire pour cet ID ({player_id[:12]}...). "
+                    "Essayez de recharger la page et réactiver les notifications."
+                )
             else:
                 error_body = response.text
                 logger.error(
