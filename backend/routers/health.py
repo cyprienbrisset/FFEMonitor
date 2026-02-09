@@ -73,6 +73,32 @@ async def debug_supabase():
     return result
 
 
+@router.get("/debug/push-subscription")
+async def debug_push_subscription(
+    user: UserContext = Depends(get_current_user)
+):
+    """Debug: vérifie le statut de la subscription OneSignal de l'utilisateur."""
+    from backend.main import app_state
+    from backend.config import settings
+
+    result = {
+        "user_id": user.id,
+        "onesignal_player_id": user.onesignal_player_id,
+        "onesignal_configured": settings.onesignal_configured,
+    }
+
+    if not user.onesignal_player_id:
+        result["error"] = "Pas d'ID de subscription push enregistré"
+        return result
+
+    notifier = app_state.get("notifier")
+    if notifier and notifier.onesignal:
+        check = await notifier.onesignal.check_subscription(user.onesignal_player_id)
+        result["onesignal_check"] = check
+
+    return result
+
+
 @router.post("/test-push", response_model=MessageResponse)
 async def test_push_notification(
     user: UserContext = Depends(get_current_user)

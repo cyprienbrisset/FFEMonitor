@@ -349,6 +349,7 @@ class OneSignalNotifier:
             payload = {
                 "app_id": self.app_id,
                 "include_subscription_ids": [player_id],
+                "target_channel": "push",
                 "headings": {"en": title, "fr": title},
                 "contents": {"en": message, "fr": message},
             }
@@ -359,6 +360,8 @@ class OneSignalNotifier:
             if data:
                 payload["data"] = data
 
+            logger.info(f"Push OneSignal: envoi à {player_id} via {self.ONESIGNAL_API_URL}")
+
             response = await client.post(
                 self.ONESIGNAL_API_URL,
                 headers={
@@ -368,47 +371,38 @@ class OneSignalNotifier:
                 json=payload,
             )
 
-            if response.status_code == 200:
-                result = response.json()
+            result = response.json()
+            logger.info(f"Push OneSignal réponse ({response.status_code}): {result}")
 
+            if response.status_code == 200:
                 # Vérifier les erreurs explicites
                 errors = result.get("errors", {})
-                invalid = errors.get("invalid_subscription_ids", [])
+                invalid = (
+                    errors.get("invalid_subscription_ids", [])
+                    if isinstance(errors, dict)
+                    else []
+                )
 
                 if invalid:
-                    logger.warning(
-                        f"Push OneSignal: subscription invalide pour {player_id} "
-                        f"(invalid_ids: {invalid})"
-                    )
                     return False, (
-                        f"L'ID de souscription ({player_id[:12]}...) n'est plus valide sur OneSignal. "
-                        "L'abonnement push a peut-être expiré ou été révoqué. "
+                        f"L'ID de souscription ({player_id[:12]}...) n'est plus valide. "
                         "Essayez de désactiver puis réactiver les notifications."
                     )
 
-                if errors and isinstance(errors, list) and len(errors) > 0:
-                    logger.warning(f"Push OneSignal erreurs: {errors}")
+                if isinstance(errors, list) and len(errors) > 0:
                     return False, f"Erreur OneSignal: {errors}"
 
-                # v2 API: si la réponse contient un "id", la notification est créée
-                if result.get("id"):
-                    logger.info(
-                        f"Push OneSignal envoyé à {player_id} "
-                        f"(notification_id: {result['id']})"
-                    )
+                # Vérifier le nombre de destinataires
+                recipients = result.get("recipients", 0)
+                if recipients > 0:
+                    logger.info(f"Push OneSignal envoyé à {player_id} ({recipients} destinataire(s))")
                     return True, "Notification envoyée"
 
-                # Fallback: vérifier "recipients" (v1 API)
-                if result.get("recipients", 0) > 0:
-                    logger.info(f"Push OneSignal envoyé à {player_id}")
-                    return True, "Notification envoyée"
-
-                logger.warning(
-                    f"Push OneSignal: réponse inattendue pour {player_id}: {result}"
-                )
+                # 0 destinataires — la subscription n'est pas reconnue
                 return False, (
                     f"OneSignal n'a trouvé aucun destinataire pour cet ID ({player_id[:12]}...). "
-                    "Essayez de recharger la page et réactiver les notifications."
+                    "L'abonnement push n'est peut-être pas encore actif. "
+                    "Essayez de recharger la page, puis désactiver et réactiver les notifications."
                 )
             else:
                 error_body = response.text
@@ -549,6 +543,30 @@ class OneSignalNotifier:
             message="Les notifications push fonctionnent correctement !",
             url="/app",
         )
+
+    async def check_subscription(self, subscription_id: str) -> dict:
+        """
+        Vérifie le statut d'une subscription sur OneSignal.
+
+        Returns:
+            Dict avec les infos de la subscription
+        """
+        try:
+            client = await self._get_client()
+            url = f"https://api.onesignal.com/apps/{self.app_id}/subscriptions/{subscription_id}"
+            response = await client.get(
+                url,
+                headers={
+                    "Authorization": f"Key {self.api_key}",
+                    "Accept": "application/json",
+                },
+            )
+            result = response.json()
+            logger.info(f"OneSignal subscription check ({response.status_code}): {result}")
+            return {"status_code": response.status_code, "data": result}
+        except Exception as e:
+            logger.error(f"Erreur vérification subscription: {e}")
+            return {"status_code": 0, "error": str(e)}
 
     async def close(self) -> None:
         """Ferme le client HTTP."""
