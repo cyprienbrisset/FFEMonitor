@@ -108,11 +108,11 @@ async def test_push_notification(
 
     try:
         # Envoyer une notification de test à cet utilisateur spécifique
-        success = await notifier.onesignal.send_test_notification(user.onesignal_player_id)
+        success, detail = await notifier.onesignal.send_test_notification(user.onesignal_player_id)
         if success:
             return MessageResponse(message="Notification push de test envoyée", success=True)
         else:
-            return MessageResponse(message="Échec de l'envoi de la notification", success=False)
+            return MessageResponse(message=detail, success=False)
     except Exception as e:
         return MessageResponse(message=f"Erreur: {str(e)}", success=False)
 

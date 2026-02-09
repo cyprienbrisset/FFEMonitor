@@ -329,7 +329,7 @@ class OneSignalNotifier:
         message: str,
         url: Optional[str] = None,
         data: Optional[dict] = None,
-    ) -> bool:
+    ) -> tuple[bool, str]:
         """
         Envoie une notification push à un player_id spécifique.
 
@@ -341,7 +341,7 @@ class OneSignalNotifier:
             data: Données additionnelles (optionnel)
 
         Returns:
-            True si envoi réussi, False sinon
+            Tuple (success, detail_message)
         """
         try:
             client = await self._get_client()
@@ -372,19 +372,35 @@ class OneSignalNotifier:
                 result = response.json()
                 if result.get("recipients", 0) > 0:
                     logger.info(f"Push OneSignal envoyé à {player_id}")
-                    return True
+                    return True, "Notification envoyée"
                 else:
-                    logger.warning(f"Push OneSignal: aucun destinataire pour {player_id}")
-                    return False
+                    # OneSignal accepted the request but found no valid subscription
+                    errors = result.get("errors", {})
+                    invalid = errors.get("invalid_subscription_ids", [])
+                    logger.warning(
+                        f"Push OneSignal: aucun destinataire pour {player_id} "
+                        f"(invalid_ids: {invalid}, full response: {result})"
+                    )
+                    if invalid:
+                        return False, (
+                            f"L'ID de souscription ({player_id[:12]}...) n'est plus valide sur OneSignal. "
+                            "L'abonnement push a peut-être expiré ou été révoqué. "
+                            "Essayez de désactiver puis réactiver les notifications."
+                        )
+                    return False, (
+                        f"OneSignal n'a trouvé aucun destinataire pour cet ID ({player_id[:12]}...). "
+                        "Essayez de recharger la page et réactiver les notifications."
+                    )
             else:
+                error_body = response.text
                 logger.error(
-                    f"Erreur OneSignal ({response.status_code}): {response.text}"
+                    f"Erreur OneSignal ({response.status_code}): {error_body}"
                 )
-                return False
+                return False, f"Erreur OneSignal (HTTP {response.status_code}): {error_body[:200]}"
 
         except Exception as e:
             logger.error(f"Erreur envoi push OneSignal: {e}")
-            return False
+            return False, f"Erreur réseau: {str(e)}"
 
     async def send_to_all(
         self,
@@ -489,13 +505,14 @@ class OneSignalNotifier:
 
         url = f"{settings.ffe_concours_url}/{numero}"
 
-        return await self.send_to_player(
+        success, _ = await self.send_to_player(
             player_id=player_id,
             title=title,
             message=message,
             url=url,
             data={"concours_numero": numero, "statut": statut},
         )
+        return success
 
     async def send_startup_notification(self) -> bool:
         """Envoie une notification de démarrage à tous les utilisateurs."""
@@ -505,7 +522,7 @@ class OneSignalNotifier:
             url="/app",
         )
 
-    async def send_test_notification(self, player_id: str) -> bool:
+    async def send_test_notification(self, player_id: str) -> tuple[bool, str]:
         """Envoie une notification de test."""
         return await self.send_to_player(
             player_id=player_id,
