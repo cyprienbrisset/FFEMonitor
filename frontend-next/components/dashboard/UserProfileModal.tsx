@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { User } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
 import { testNotification, loadProfile, UserProfile } from '@/lib/api'
-import { getPushStatus, requestPushPermission, isIOS, isPWA, forceOneSignalSync } from '@/components/OneSignalSync'
+import { getPushStatus, requestPushPermission, isIOS, isPWA, forceOneSignalSync, requestAndSyncPush } from '@/components/OneSignalSync'
 
 interface UserProfileModalProps {
   user: User
@@ -63,19 +63,30 @@ export function UserProfileModal({ user, accessToken, getAccessToken, onClose, o
           subscriptionId: null
         }
 
-        // Try to get OneSignal subscription ID
+        setDebugInfo(info)
+
+        // Try to get OneSignal subscription ID (runs async via deferred queue)
         if (window.OneSignalDeferred) {
           window.OneSignalDeferred.push(async (OneSignal: any) => {
             try {
-              const subId = await OneSignal.User?.PushSubscription?.id
+              // Try immediately
+              let subId = await OneSignal.User?.PushSubscription?.id
+
+              // If no ID yet but permission is granted, poll briefly
+              if (!subId && 'Notification' in window && Notification.permission === 'granted') {
+                for (let i = 0; i < 5; i++) {
+                  await new Promise(r => setTimeout(r, 1000))
+                  subId = await OneSignal.User?.PushSubscription?.id
+                  if (subId) break
+                }
+              }
+
               setDebugInfo(prev => prev ? { ...prev, subscriptionId: subId || 'non disponible' } : null)
             } catch (e) {
               setDebugInfo(prev => prev ? { ...prev, subscriptionId: 'erreur' } : null)
             }
           })
         }
-
-        setDebugInfo(info)
       }
 
       gatherDebugInfo()
@@ -497,70 +508,38 @@ export function UserProfileModal({ user, accessToken, getAccessToken, onClose, o
                     <>
                       <button
                         className="btn-enable-push"
+                        disabled={loading}
                         onClick={async () => {
+                          setLoading(true)
                           showMessage('Activation en cours...', 'success')
 
-                          // Utiliser OneSignal pour demander la permission
-                          if (typeof window !== 'undefined' && window.OneSignalDeferred) {
-                            window.OneSignalDeferred.push(async (OneSignal: any) => {
-                              try {
-                                // 1. Demander la permission via OneSignal
-                                console.log('[Push] Requesting permission via OneSignal...')
-                                await OneSignal.Notifications.requestPermission()
-
-                                // 2. Attendre et vérifier la permission
-                                await new Promise(r => setTimeout(r, 500))
-                                const perm = Notification.permission
-                                setNotifPermission(perm)
-                                console.log('[Push] Permission result:', perm)
-
-                                if (perm === 'granted') {
-                                  // 3. Forcer l'opt-in pour créer la subscription
-                                  console.log('[Push] Opting in to push...')
-                                  try {
-                                    await OneSignal.User.PushSubscription.optIn()
-                                  } catch (e) {
-                                    console.log('[Push] OptIn error (may be normal):', e)
-                                  }
-
-                                  // 4. Attendre la création de la subscription
-                                  await new Promise(r => setTimeout(r, 1500))
-
-                                  // 5. Récupérer l'ID
-                                  const subId = await OneSignal.User?.PushSubscription?.id
-                                  console.log('[Push] Subscription ID:', subId)
-
-                                  if (subId) {
-                                    // 6. Sync avec le backend
-                                    const token = getAccessToken ? await getAccessToken() : accessToken
-                                    if (token) {
-                                      const result = await forceOneSignalSync(token)
-                                      showMessage(result.message, result.success ? 'success' : 'error')
-                                    }
-                                    setDebugInfo(prev => prev ? { ...prev, subscriptionId: subId, permission: 'granted' } : null)
-                                  } else {
-                                    showMessage('Permission OK mais ID non créé. Rechargez la page et réessayez.', 'error')
-                                  }
-                                } else if (perm === 'denied') {
-                                  showMessage('Notifications bloquées. Vérifiez les paramètres.', 'error')
-                                } else {
-                                  showMessage('Permission non accordée. Réessayez.', 'error')
-                                }
-                              } catch (error: any) {
-                                console.error('[Push] Error:', error)
-                                showMessage(`Erreur: ${error.message || 'Inconnue'}`, 'error')
-                              }
-                            })
-                          } else {
-                            showMessage('OneSignal non chargé. Rechargez la page.', 'error')
+                          const token = getAccessToken ? await getAccessToken() : accessToken
+                          if (!token) {
+                            showMessage('Session expirée. Veuillez vous reconnecter.', 'error')
+                            setLoading(false)
+                            return
                           }
+
+                          const result = await requestAndSyncPush(token)
+
+                          setNotifPermission(result.permission)
+                          if (result.subscriptionId) {
+                            setDebugInfo(prev => prev ? {
+                              ...prev,
+                              subscriptionId: result.subscriptionId,
+                              permission: result.permission,
+                            } : null)
+                          }
+
+                          showMessage(result.message, result.success ? 'success' : 'error')
+                          setLoading(false)
                         }}
                       >
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
                           <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
                         </svg>
-                        {notifPermission === 'granted' ? 'Réactiver les notifications' : 'Activer les notifications push'}
+                        {loading ? 'Activation...' : notifPermission === 'granted' ? 'Réactiver les notifications' : 'Activer les notifications push'}
                       </button>
                       <p className="push-hint">
                         {notifPermission === 'granted'

@@ -119,6 +119,9 @@ html {
     scroll-behavior: smooth;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
 }
 
 body {
@@ -128,6 +131,7 @@ body {
     min-height: 100vh;
     line-height: 1.6;
     transition: background-color var(--transition-normal), color var(--transition-normal);
+    overflow-x: hidden;
 }
 
 /* Hide noise overlay - not needed for this design */
@@ -704,7 +708,7 @@ body {
 /* Concours Grid */
 .concours-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
     gap: var(--spacing-md);
 }
 
@@ -942,6 +946,8 @@ body {
     align-items: center;
     justify-content: center;
     background: var(--cream);
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
 }
 
 .login-container {
@@ -949,6 +955,7 @@ body {
     max-width: 480px;
     padding: var(--spacing-lg);
     position: relative;
+    overflow: hidden;
 }
 
 .login-card {
@@ -1346,7 +1353,7 @@ body {
         z-index: 50;
         backdrop-filter: blur(16px);
         -webkit-backdrop-filter: blur(16px);
-        background: rgba(255, 255, 255, 0.85);
+        background: color-mix(in srgb, var(--white) 85%, transparent);
     }
 
     .logo-wrapper {
@@ -1593,6 +1600,23 @@ body {
         padding: var(--spacing-md);
         padding-bottom: calc(var(--spacing-md) + env(safe-area-inset-bottom, 20px));
         animation: slideUpSheet 0.3s ease;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+
+    .modal-content::-webkit-scrollbar {
+        display: none;
+    }
+
+    /* Bottom sheet drag handle */
+    .modal-content::before {
+        content: '';
+        display: block;
+        width: 36px;
+        height: 4px;
+        background: var(--gray-light);
+        border-radius: 2px;
+        margin: 0 auto 12px;
     }
 
     @keyframes slideUpSheet {
@@ -1872,7 +1896,7 @@ body {
     }
 
     .calendar-day {
-        min-height: 36px;
+        min-height: 40px;
     }
 
     .calendar-day .day-number {
@@ -2131,6 +2155,8 @@ body {
     font-family: 'SF Mono', Monaco, monospace;
     font-size: 0.875rem !important;
     color: var(--gray) !important;
+    word-break: break-all;
+    overflow-wrap: anywhere;
 }
 
 .profile-badge {
@@ -2314,6 +2340,7 @@ body {
     border-top: none !important;
     border-radius: 0 0 var(--radius-lg) var(--radius-lg);
     margin-bottom: calc(var(--spacing-lg) * -1);
+    max-width: calc(100% + var(--spacing-lg) * 2);
 }
 
 .danger-text {
@@ -2523,6 +2550,8 @@ body {
     gap: 8px;
     font-size: 0.8rem;
     font-family: monospace;
+    overflow-wrap: anywhere;
+    word-break: break-all;
 }
 
 .debug-row {
@@ -2831,7 +2860,7 @@ body {
 
 .events-list {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
     gap: 10px;
 }
 
@@ -3306,10 +3335,9 @@ body {
     .login-screen {
         min-height: 100dvh;
         padding: var(--spacing-md);
-        padding-top: calc(var(--spacing-md) + env(safe-area-inset-top, 0px));
+        padding-top: max(15vh, calc(var(--spacing-md) + env(safe-area-inset-top, 0px)));
         padding-bottom: calc(var(--spacing-md) + env(safe-area-inset-bottom, 0px));
         align-items: flex-start;
-        padding-top: 15vh;
     }
 
     .login-container {
