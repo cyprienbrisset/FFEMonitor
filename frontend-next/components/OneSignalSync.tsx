@@ -96,18 +96,32 @@ export function OneSignalSync({ accessToken, userId }: OneSignalSyncProps) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const OneSignal = OneSignalUnknown as any
         try {
+          // Diagnostic complet
+          const onesignalId = await OneSignal.User?.onesignalId
+          const subId = await OneSignal.User?.PushSubscription?.id
+          const subToken = await OneSignal.User?.PushSubscription?.token
+          const subOptedIn = await OneSignal.User?.PushSubscription?.optedIn
+          const permission = await OneSignal.Notifications?.permission
+          console.log('[OneSignal] === DIAGNOSTIC ===')
+          console.log('[OneSignal] onesignalId:', onesignalId)
+          console.log('[OneSignal] subscription.id:', subId)
+          console.log('[OneSignal] subscription.token:', subToken ? subToken.substring(0, 30) + '...' : null)
+          console.log('[OneSignal] subscription.optedIn:', subOptedIn)
+          console.log('[OneSignal] notification.permission:', permission)
+
           // Lier l'utilisateur Supabase à OneSignal via external_id
           if (userId) {
             console.log('[OneSignal] Login avec external_id:', userId)
             await OneSignal.login(userId)
+            // Re-check after login
+            const newOsId = await OneSignal.User?.onesignalId
+            console.log('[OneSignal] onesignalId après login:', newOsId)
           }
 
           // Récupérer le subscription ID — avec polling si nécessaire
           let subscriptionId = await OneSignal.User?.PushSubscription?.id
 
           if (!subscriptionId) {
-            // Permission peut être accordée mais subscription pas encore créée
-            const permission = await OneSignal.Notifications?.permission
             if (permission) {
               console.log('[OneSignal] Permission granted but no subscription ID yet, trying opt-in + polling...')
               try { await OneSignal.User?.PushSubscription?.optIn() } catch (e) {

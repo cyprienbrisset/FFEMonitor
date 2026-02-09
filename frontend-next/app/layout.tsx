@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import { DM_Serif_Display, DM_Sans } from 'next/font/google'
 import Script from 'next/script'
-import { ServiceWorkerRegistration } from '@/components/ServiceWorkerRegistration'
 import { Providers } from '@/components/Providers'
 import './globals.css'
 
@@ -70,18 +69,15 @@ export default function RootLayout({
   return (
     <html lang="fr" className={`${dmSerifDisplay.variable} ${dmSans.variable}`}>
       <head>
-        {/* Nettoyer les anciens SW (sw.js) qui pourraient conflictuer AVANT OneSignal */}
+        {/* Nettoyer TOUS les anciens SW avant que OneSignal ne s'initialise */}
         <Script id="sw-cleanup" strategy="beforeInteractive">
           {`
             (async function() {
               if ('serviceWorker' in navigator) {
                 var regs = await navigator.serviceWorker.getRegistrations();
                 for (var i = 0; i < regs.length; i++) {
-                  var sw = regs[i].active || regs[i].installing || regs[i].waiting;
-                  if (sw && sw.scriptURL && sw.scriptURL.indexOf('/sw.js') !== -1) {
-                    console.log('[SW-Cleanup] Suppression ancien sw.js');
-                    await regs[i].unregister();
-                  }
+                  console.log('[SW-Cleanup] Suppression SW:', regs[i].active && regs[i].active.scriptURL);
+                  await regs[i].unregister();
                 }
               }
             })();
@@ -131,7 +127,6 @@ export default function RootLayout({
       </head>
       <body>
         <Providers>
-          <ServiceWorkerRegistration />
           {children}
         </Providers>
       </body>
