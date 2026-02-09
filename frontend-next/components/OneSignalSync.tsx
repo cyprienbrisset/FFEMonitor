@@ -7,6 +7,7 @@ import { updateProfile } from '@/lib/api'
 
 interface OneSignalSyncProps {
   accessToken?: string
+  userId?: string
 }
 
 // Helpers pour détecter iOS et PWA
@@ -83,7 +84,7 @@ async function waitForSubscriptionId(OneSignal: any, maxAttempts = 15, intervalM
   return null
 }
 
-export function OneSignalSync({ accessToken }: OneSignalSyncProps) {
+export function OneSignalSync({ accessToken, userId }: OneSignalSyncProps) {
   const hasRegistered = useRef(false)
 
   useEffect(() => {
@@ -95,6 +96,12 @@ export function OneSignalSync({ accessToken }: OneSignalSyncProps) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const OneSignal = OneSignalUnknown as any
         try {
+          // Lier l'utilisateur Supabase à OneSignal via external_id
+          if (userId) {
+            console.log('[OneSignal] Login avec external_id:', userId)
+            await OneSignal.login(userId)
+          }
+
           // Récupérer le subscription ID — avec polling si nécessaire
           let subscriptionId = await OneSignal.User?.PushSubscription?.id
 
@@ -132,7 +139,7 @@ export function OneSignalSync({ accessToken }: OneSignalSyncProps) {
         }
       })
     }
-  }, [accessToken])
+  }, [accessToken, userId])
 
   return null
 }

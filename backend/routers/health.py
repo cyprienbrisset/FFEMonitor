@@ -125,20 +125,27 @@ async def test_push_notification(
     if not notifier.onesignal:
         return MessageResponse(message="OneSignal notifier non disponible", success=False)
 
-    # Vérifier si l'utilisateur a un player_id OneSignal
-    if not user.onesignal_player_id:
-        return MessageResponse(
-            message="Notifications non configurées. Sur iOS, ajoutez l'app à l'écran d'accueil puis autorisez les notifications. Sinon, cliquez sur 'Autoriser' quand le navigateur vous le propose.",
-            success=False
+    try:
+        # Méthode principale : cibler par external_id (Supabase user ID)
+        # Nécessite que le frontend ait fait OneSignal.login(userId)
+        success, detail = await notifier.onesignal.send_to_external_id(
+            external_id=user.id,
+            title="🐴 Hoofs - Test",
+            message="Les notifications push fonctionnent correctement !",
+            url="/app",
         )
 
-    try:
-        # Envoyer une notification de test à cet utilisateur spécifique
-        success, detail = await notifier.onesignal.send_test_notification(user.onesignal_player_id)
         if success:
             return MessageResponse(message="Notification push de test envoyée", success=True)
-        else:
-            return MessageResponse(message=detail, success=False)
+
+        # Fallback : essayer par subscription_id si external_id échoue
+        if user.onesignal_player_id:
+            success2, detail2 = await notifier.onesignal.send_test_notification(user.onesignal_player_id)
+            if success2:
+                return MessageResponse(message="Notification push envoyée (via subscription ID)", success=True)
+            detail = f"{detail} | Fallback: {detail2}"
+
+        return MessageResponse(message=detail, success=False)
     except Exception as e:
         return MessageResponse(message=f"Erreur: {str(e)}", success=False)
 

@@ -218,7 +218,7 @@ export default function DashboardPage() {
       />
 
       {/* OneSignal Player ID Sync */}
-      {accessToken && <OneSignalSync accessToken={accessToken} />}
+      {accessToken && <OneSignalSync accessToken={accessToken} userId={user?.id} />}
     </div>
   )
 }

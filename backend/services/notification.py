@@ -322,23 +322,12 @@ class OneSignalNotifier:
             self._client = httpx.AsyncClient(timeout=10.0)
         return self._client
 
-    async def send_to_player(
+    async def _send_notification(
         self,
-        player_id: str,
-        title: str,
-        message: str,
-        url: Optional[str] = None,
-        data: Optional[dict] = None,
+        payload: dict,
     ) -> tuple[bool, str]:
         """
-        Envoie une notification push à un player_id spécifique.
-
-        Args:
-            player_id: ID du player OneSignal
-            title: Titre de la notification
-            message: Corps du message
-            url: URL à ouvrir au clic (optionnel)
-            data: Données additionnelles (optionnel)
+        Envoie une notification push via l'API OneSignal.
 
         Returns:
             Tuple (success, detail_message)
@@ -346,21 +335,7 @@ class OneSignalNotifier:
         try:
             client = await self._get_client()
 
-            payload = {
-                "app_id": self.app_id,
-                "include_subscription_ids": [player_id],
-                "target_channel": "push",
-                "headings": {"en": title, "fr": title},
-                "contents": {"en": message, "fr": message},
-            }
-
-            if url:
-                payload["url"] = url
-
-            if data:
-                payload["data"] = data
-
-            logger.info(f"Push OneSignal: envoi à {player_id} via {self.ONESIGNAL_API_URL}")
+            logger.info(f"Push OneSignal: envoi via {self.ONESIGNAL_API_URL}, payload keys: {list(payload.keys())}")
 
             response = await client.post(
                 self.ONESIGNAL_API_URL,
@@ -377,17 +352,16 @@ class OneSignalNotifier:
             if response.status_code == 200:
                 # Vérifier les erreurs explicites
                 errors = result.get("errors", {})
-                invalid = (
-                    errors.get("invalid_subscription_ids", [])
-                    if isinstance(errors, dict)
-                    else []
-                )
-
-                if invalid:
-                    return False, (
-                        f"L'ID de souscription ({player_id[:12]}...) n'est plus valide. "
-                        "Essayez de désactiver puis réactiver les notifications."
-                    )
+                if isinstance(errors, dict):
+                    invalid = errors.get("invalid_subscription_ids", [])
+                    invalid_aliases = errors.get("invalid_aliases", {})
+                    if invalid:
+                        return False, (
+                            "L'ID de souscription n'est plus valide. "
+                            "Essayez de désactiver puis réactiver les notifications."
+                        )
+                    if invalid_aliases:
+                        return False, f"Alias non reconnu par OneSignal: {invalid_aliases}"
 
                 if isinstance(errors, list) and len(errors) > 0:
                     return False, f"Erreur OneSignal: {errors}"
@@ -395,14 +369,13 @@ class OneSignalNotifier:
                 # Vérifier le nombre de destinataires
                 recipients = result.get("recipients", 0)
                 if recipients > 0:
-                    logger.info(f"Push OneSignal envoyé à {player_id} ({recipients} destinataire(s))")
+                    logger.info(f"Push OneSignal envoyé ({recipients} destinataire(s))")
                     return True, "Notification envoyée"
 
-                # 0 destinataires — la subscription n'est pas reconnue
+                # 0 destinataires
                 return False, (
-                    f"OneSignal n'a trouvé aucun destinataire pour cet ID ({player_id[:12]}...). "
-                    "L'abonnement push n'est peut-être pas encore actif. "
-                    "Essayez de recharger la page, puis désactiver et réactiver les notifications."
+                    "OneSignal n'a trouvé aucun destinataire. "
+                    "Rechargez la page et réactivez les notifications."
                 )
             else:
                 error_body = response.text
@@ -414,6 +387,59 @@ class OneSignalNotifier:
         except Exception as e:
             logger.error(f"Erreur envoi push OneSignal: {e}")
             return False, f"Erreur réseau: {str(e)}"
+
+    async def send_to_external_id(
+        self,
+        external_id: str,
+        title: str,
+        message: str,
+        url: Optional[str] = None,
+        data: Optional[dict] = None,
+    ) -> tuple[bool, str]:
+        """
+        Envoie une notification push via external_id (Supabase user ID).
+        C'est l'approche recommandée par OneSignal v2 : le SDK fait
+        OneSignal.login(userId) côté frontend, et on cible par alias.
+        """
+        payload = {
+            "app_id": self.app_id,
+            "include_aliases": {"external_id": [external_id]},
+            "target_channel": "push",
+            "headings": {"en": title, "fr": title},
+            "contents": {"en": message, "fr": message},
+        }
+        if url:
+            payload["url"] = url
+        if data:
+            payload["data"] = data
+
+        return await self._send_notification(payload)
+
+    async def send_to_player(
+        self,
+        player_id: str,
+        title: str,
+        message: str,
+        url: Optional[str] = None,
+        data: Optional[dict] = None,
+    ) -> tuple[bool, str]:
+        """
+        Envoie une notification push à un subscription_id spécifique (fallback).
+        Préférer send_to_external_id quand possible.
+        """
+        payload = {
+            "app_id": self.app_id,
+            "include_subscription_ids": [player_id],
+            "target_channel": "push",
+            "headings": {"en": title, "fr": title},
+            "contents": {"en": message, "fr": message},
+        }
+        if url:
+            payload["url"] = url
+        if data:
+            payload["data"] = data
+
+        return await self._send_notification(payload)
 
     async def send_to_all(
         self,
@@ -476,28 +502,18 @@ class OneSignalNotifier:
 
     async def send_concours_notification(
         self,
-        player_id: str,
         numero: int,
         statut: str,
         nom: str | None = None,
         lieu: str | None = None,
         date_debut: str | None = None,
         date_fin: str | None = None,
+        external_id: str | None = None,
+        player_id: str | None = None,
     ) -> bool:
         """
         Envoie une notification d'ouverture de concours par push.
-
-        Args:
-            player_id: ID du player OneSignal
-            numero: Numéro du concours
-            statut: Type d'ouverture (engagement, demande, etc.)
-            nom: Nom du concours
-            lieu: Lieu du concours
-            date_debut: Date de début
-            date_fin: Date de fin
-
-        Returns:
-            True si envoi réussi, False sinon
+        Essaie d'abord par external_id, puis par player_id en fallback.
         """
         # Déterminer le type d'ouverture
         if statut == "engagement":
@@ -517,15 +533,25 @@ class OneSignalNotifier:
             message += f" - {lieu}"
 
         url = f"{settings.ffe_concours_url}/{numero}"
+        data = {"concours_numero": numero, "statut": statut}
 
-        success, _ = await self.send_to_player(
-            player_id=player_id,
-            title=title,
-            message=message,
-            url=url,
-            data={"concours_numero": numero, "statut": statut},
-        )
-        return success
+        # Essayer par external_id d'abord (approche recommandée)
+        if external_id:
+            success, _ = await self.send_to_external_id(
+                external_id=external_id, title=title, message=message, url=url, data=data,
+            )
+            if success:
+                return True
+
+        # Fallback par subscription_id
+        if player_id:
+            success, _ = await self.send_to_player(
+                player_id=player_id, title=title, message=message, url=url, data=data,
+            )
+            return success
+
+        logger.warning(f"Pas d'identifiant push pour concours {numero}")
+        return False
 
     async def send_startup_notification(self) -> bool:
         """Envoie une notification de démarrage à tous les utilisateurs."""
@@ -700,16 +726,17 @@ class NotificationDispatcher:
 
             notification_sent = False
 
-            # Envoyer via OneSignal si player_id disponible et push activé
-            if self.onesignal and player_id and profile.get("notification_push", True):
+            # Envoyer via OneSignal si push activé
+            if self.onesignal and (user_id or player_id) and profile.get("notification_push", True):
                 success = await self.onesignal.send_concours_notification(
-                    player_id=player_id,
                     numero=concours.get("numero"),
                     statut=concours.get("statut", "ferme"),
                     nom=concours.get("nom"),
                     lieu=concours.get("lieu"),
                     date_debut=concours.get("date_debut"),
                     date_fin=concours.get("date_fin"),
+                    external_id=user_id,
+                    player_id=player_id,
                 )
 
                 if success:
