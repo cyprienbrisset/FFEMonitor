@@ -82,7 +82,7 @@ export default function RootLayout({
                 await OneSignal.init({
                   appId: "${oneSignalAppId}",
                   serviceWorkerParam: { scope: "/" },
-                  serviceWorkerPath: "/OneSignalSDKWorker.js",
+                  serviceWorkerPath: "/sw.js",
                   allowLocalhostAsSecureOrigin: true,
                   notifyButton: {
                     enable: false,

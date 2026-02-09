@@ -10,28 +10,35 @@ declare global {
 
 export function ServiceWorkerRegistration() {
   useEffect(() => {
-    // Si OneSignal est présent, il gère l'enregistrement du service worker
-    // Sinon, on enregistre manuellement pour le support hors ligne
+    // OneSignal gère l'enregistrement de /sw.js (configuré dans layout.tsx).
+    // Ce composant sert uniquement de fallback si OneSignal n'est pas disponible.
     if ('serviceWorker' in navigator) {
-      // Attendre un peu pour voir si OneSignal est initialisé
-      const timeout = setTimeout(() => {
-        // Vérifier si OneSignal n'a pas déjà enregistré le service worker
-        navigator.serviceWorker.getRegistration('/sw.js').then((registration) => {
-          if (!registration) {
-            // OneSignal n'a pas enregistré le SW, on le fait nous-mêmes
-            navigator.serviceWorker
-              .register('/sw.js', { scope: '/' })
-              .then((reg) => {
-                console.log('[App] Service Worker enregistré:', reg.scope)
-              })
-              .catch((error) => {
-                console.error('[App] Erreur enregistrement SW:', error)
-              })
-          } else {
-            console.log('[App] Service Worker déjà enregistré (OneSignal):', registration.scope)
+      const timeout = setTimeout(async () => {
+        try {
+          const registrations = await navigator.serviceWorker.getRegistrations()
+
+          // Nettoyer l'ancien OneSignalSDKWorker.js (migration)
+          for (const reg of registrations) {
+            if (reg.active?.scriptURL?.includes('OneSignalSDKWorker')) {
+              console.log('[App] Suppression ancien SW OneSignal:', reg.active.scriptURL)
+              await reg.unregister()
+            }
           }
-        })
-      }, 2000) // Attendre 2 secondes pour laisser OneSignal s'initialiser
+
+          const hasSwRegistration = registrations.some(
+            (r) => r.active?.scriptURL?.includes('/sw.js')
+          )
+          if (!hasSwRegistration) {
+            // OneSignal n'a pas enregistré le SW, on le fait nous-mêmes
+            const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' })
+            console.log('[App] Service Worker enregistré (fallback):', reg.scope)
+          } else {
+            console.log('[App] Service Worker déjà enregistré par OneSignal')
+          }
+        } catch (error) {
+          console.error('[App] Erreur enregistrement SW:', error)
+        }
+      }, 3000) // Laisser le temps à OneSignal d'enregistrer /sw.js
 
       return () => clearTimeout(timeout)
     }
