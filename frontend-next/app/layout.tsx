@@ -70,7 +70,7 @@ export default function RootLayout({
   return (
     <html lang="fr" className={`${dmSerifDisplay.variable} ${dmSans.variable}`}>
       <head>
-        {/* Nettoyer l'ancien SW OneSignal AVANT de charger le SDK */}
+        {/* Nettoyer les anciens SW (sw.js) qui pourraient conflictuer AVANT OneSignal */}
         <Script id="sw-cleanup" strategy="beforeInteractive">
           {`
             (async function() {
@@ -78,8 +78,8 @@ export default function RootLayout({
                 var regs = await navigator.serviceWorker.getRegistrations();
                 for (var i = 0; i < regs.length; i++) {
                   var sw = regs[i].active || regs[i].installing || regs[i].waiting;
-                  if (sw && sw.scriptURL && sw.scriptURL.indexOf('OneSignalSDKWorker') !== -1) {
-                    console.log('[SW-Cleanup] Suppression ancien OneSignalSDKWorker');
+                  if (sw && sw.scriptURL && sw.scriptURL.indexOf('/sw.js') !== -1) {
+                    console.log('[SW-Cleanup] Suppression ancien sw.js');
                     await regs[i].unregister();
                   }
                 }
@@ -99,7 +99,7 @@ export default function RootLayout({
                 await OneSignal.init({
                   appId: "${oneSignalAppId}",
                   serviceWorkerParam: { scope: "/" },
-                  serviceWorkerPath: "/sw.js",
+                  serviceWorkerPath: "/OneSignalSDKWorker.js",
                   allowLocalhostAsSecureOrigin: true,
                   notifyButton: {
                     enable: false,

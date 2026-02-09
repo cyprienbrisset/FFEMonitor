@@ -10,18 +10,18 @@ declare global {
 
 export function ServiceWorkerRegistration() {
   useEffect(() => {
-    // OneSignal gère l'enregistrement de /sw.js (configuré dans layout.tsx).
+    // OneSignal gère l'enregistrement de /OneSignalSDKWorker.js (configuré dans layout.tsx).
     // Ce composant sert uniquement de fallback si OneSignal n'est pas disponible.
     if ('serviceWorker' in navigator) {
       const timeout = setTimeout(async () => {
         try {
           const registrations = await navigator.serviceWorker.getRegistrations()
-          const hasSwRegistration = registrations.some((r) => {
+          const hasRegistration = registrations.some((r) => {
             const sw = r.active || r.installing || r.waiting
-            return sw?.scriptURL?.includes('/sw.js')
+            return sw?.scriptURL?.includes('OneSignalSDKWorker')
           })
-          if (!hasSwRegistration) {
-            const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' })
+          if (!hasRegistration) {
+            const reg = await navigator.serviceWorker.register('/OneSignalSDKWorker.js', { scope: '/' })
             console.log('[App] Service Worker enregistré (fallback):', reg.scope)
           }
         } catch (error) {
