@@ -70,6 +70,23 @@ export default function RootLayout({
   return (
     <html lang="fr" className={`${dmSerifDisplay.variable} ${dmSans.variable}`}>
       <head>
+        {/* Nettoyer l'ancien SW OneSignal AVANT de charger le SDK */}
+        <Script id="sw-cleanup" strategy="beforeInteractive">
+          {`
+            (async function() {
+              if ('serviceWorker' in navigator) {
+                var regs = await navigator.serviceWorker.getRegistrations();
+                for (var i = 0; i < regs.length; i++) {
+                  var sw = regs[i].active || regs[i].installing || regs[i].waiting;
+                  if (sw && sw.scriptURL && sw.scriptURL.indexOf('OneSignalSDKWorker') !== -1) {
+                    console.log('[SW-Cleanup] Suppression ancien OneSignalSDKWorker');
+                    await regs[i].unregister();
+                  }
+                }
+              }
+            })();
+          `}
+        </Script>
         <Script
           src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js"
           strategy="afterInteractive"
